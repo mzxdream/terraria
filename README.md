@@ -1,0 +1,2 @@
+# terraria
+terraria tcp nat 
