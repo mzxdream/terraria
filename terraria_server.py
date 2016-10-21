@@ -7,8 +7,7 @@ import time
 
 serv_name = "mzx"
 
-local_addr = ("", 7777)
-dest_addr = ("", 7777)
+proxy_addr = ("", 7777)
 nat_addr = ("", 7777)
 
 header_size = 4
@@ -18,24 +17,24 @@ HEART_BEAT = 0
 S2N_REGIST_SERV_ASK = 1
 N2S_REGIST_SERV_RET = 2
 
-S2N_REGIST_PROXY_ASK = 3
-N2S_REGIST_PROXY_RET = 4
+C2N_REQUEST_PROXY_ASK = 3
+N2C_REQUEST_PROXY_RET = 4
 
-N2S_CLIENT_CONNECT_ASK = 3
-S2N_CLIENT_CONNECT_RET = 4
+N2S_REQUEST_PROXY_ASK = 5
+S2N_REQUEST_PROXY_RET = 6
 
-S2N_CONNECT_CLIENT_ASK = 5
-N2S_CONNECT_CLIENT_RET = 6
+S2N_REGIST_PROXY_ASK = 7
+N2S_REGIST_PROXY_RET = 8
 
 class LocalProxy(asyncore.dispatcher):
 
-    def __init__(self, mgr):
+    def __init__(self, mgr, remote_addr):
         asyncore.dispatcher.__init__(self)
         self.mgr = mgr
-        self.addr = dest_addr
+        self.remote_addr = remote_addr
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        self.connect(self.addr)
+        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count = 1
         self.status = "connecting"
@@ -43,11 +42,8 @@ class LocalProxy(asyncore.dispatcher):
 
     def handle_connect(self):
         self.status = "connected"
-        print "connect server success"
-        self.mgr.on_local_connect()
 
     def handle_close(self):
-        print "server close"
         self.close()
         if self.status == "connected":
             self.mgr.on_local_disconnect()
@@ -55,7 +51,6 @@ class LocalProxy(asyncore.dispatcher):
         self.status = "disconnect"
 
     def handle_error(self):
-        print "server error"
         self.handle_close()
 
     def handle_read(self):
@@ -80,12 +75,12 @@ class LocalProxy(asyncore.dispatcher):
         if self.connet_count > 10:
             self.handle_close()
             return
+        self.status = "connecting"
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        self.connect(self.addr)
+        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count += 1
-        self.status = "connecting"
 
     def update(self):
         now_time = time.time()
@@ -99,11 +94,11 @@ class RemoteProxy(asyncore.dispatcher):
         asyncore.dispatcher.__init__(self)
         self.mgr = mgr
         self.bind_addr = bind_addr
-        self.addr = remote_addr
+        self.remote_addr = remote_addr
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
         self.bind(self.bind_addr)
-        self.connect(self.addr)
+        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count = 1
         self.status = "connecting"
@@ -111,11 +106,9 @@ class RemoteProxy(asyncore.dispatcher):
 
     def handle_connect(self):
         self.status = "connected"
-        print "connect server success"
-        self.mgr.on_remote_connect()
 
     def handle_close(self):
-        print "server close"
+        print "remote proxy close"
         self.close()
         if self.status == "connected":
             self.mgr.on_remote_disconnect()
@@ -123,7 +116,6 @@ class RemoteProxy(asyncore.dispatcher):
         self.status = "disconnect"
 
     def handle_error(self):
-        print "server error"
         self.handle_close()
 
     def handle_read(self):
@@ -136,7 +128,7 @@ class RemoteProxy(asyncore.dispatcher):
         self.send_buffer += data
 
     def writable(self):
-        return self.status != "connected" or len(self.send_buffer) > 0
+        return self.status == "connecting" or len(self.send_buffer) > 0
 
     def handle_write(self):
         if len(self.send_buffer) <= 0:
@@ -148,13 +140,13 @@ class RemoteProxy(asyncore.dispatcher):
         if self.connet_count > 10:
             self.handle_close()
             return
+        self.status = "connecting"
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
         self.bind(self.bind_addr)
-        self.connect(self.addr)
+        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count += 1
-        self.status = "connecting"
 
     def update(self):
         now_time = time.time()
@@ -164,14 +156,14 @@ class RemoteProxy(asyncore.dispatcher):
 
 class ProxyHelper(asyncore.dispatcher):
 
-    def __init__(self, mgr, name, addr):
+    def __init__(self, mgr, name, remote_addr):
         asyncore.dispatcher.__init__(self)
         self.mgr = mgr
         self.name = name
-        self.addr = addr
+        self.remote_addr = remote_addr
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        self.connect(self.addr)
+        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count = 1
         self.status = "connecting"
@@ -181,11 +173,9 @@ class ProxyHelper(asyncore.dispatcher):
         self.send_buffer = bytes()
         self.recv_buffer = bytes()
         self.send_buffer += (struct.pack("!2H", len(self.name), S2N_REGIST_PROXY_ASK) + self.name)
-        print "connect server success"
-        self.mgr.on_helper_connect()
 
     def handle_close(self):
-        print "server close"
+        print self.name, "helper server close"
         self.close()
         if self.status == "connected":
             self.mgr.on_helper_disconnect()
@@ -193,7 +183,6 @@ class ProxyHelper(asyncore.dispatcher):
         self.status = "disconnect"
 
     def handle_error(self):
-        print "server error"
         self.handle_close()
 
     def handle_read(self):
@@ -201,18 +190,6 @@ class ProxyHelper(asyncore.dispatcher):
         if not data:
             return
         self.recv_buffer += data
-        self.decode_package()
-
-    def writable(self):
-        return self.status != "connected" or len(self.send_buffer) > 0
-
-    def handle_write(self):
-        if len(self.send_buffer) <= 0:
-            return
-        sent = self.send(self.send_buffer)
-        self.send_buffer = self.send_buffer[sent:]
-
-    def decode_package(self):
         while True:
             if len(self.recv_buffer) < header_size:
                 break
@@ -221,28 +198,38 @@ class ProxyHelper(asyncore.dispatcher):
                 break
             body = self.recv_buffer[header_size:header_size+body_size]
             self.recv_buffer = self.recv_buffer[header_size+body_size:]
-            self.dispatch_package(cmd, body)
 
-    def dispatch_package(self, cmd, body):
-        if cmd == N2S_REGIST_PROXY_RET:
-            addr = body.split(":")
-            if len(addr) != 2:
-                self.handle_close()
+            if cmd == N2S_REGIST_PROXY_RET:
+                addr = body.split(":")
+                if len(addr) != 2:
+                    self.handle_close()
+                    print "help proxy recv:", body
+                    return
+                bind_addr = self.socket.getsockname()
+                remote_addr = (addr[0], int(addr[1]))
+                self.close()
+                self.mgr.on_helper_proxy(bind_addr, remote_addr)
                 return
-            addr = (addr[0], int(addr[1]))
-            local_addr = self.socket.getsockname()
-            self.mgr.on_helper_regist(local_addr, addr)
+
+    def writable(self):
+        return self.status == "connecting" or len(self.send_buffer) > 0
+
+    def handle_write(self):
+        if len(self.send_buffer) <= 0:
+            return
+        sent = self.send(self.send_buffer)
+        self.send_buffer = self.send_buffer[sent:]
 
     def reconnect(self):
         if self.connet_count > 10:
             self.handle_close()
             return
+        self.status = "connecting"
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        self.connect(self.addr)
+        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count += 1
-        self.status = "connecting"
 
     def update(self):
         now_time = time.time()
@@ -251,40 +238,34 @@ class ProxyHelper(asyncore.dispatcher):
                 self.reconnect()
 
 class ProxyManager():
-    def __init__(self, mgr, name, addr):
+    def __init__(self, mgr, name, proxy_addr, remote_addr):
         self.mgr = mgr
         self.name = name
-        self.helper = ProxyHelper(self, name, addr)
-
-    def on_helper_connect(self):
-        print "helper:", self.name, "connect"
+        self.proxy_addr = proxy_addr
+        self.remote_addr = remote_addr
+        self.proxy_helper = ProxyHelper(self, name, remote_addr)
 
     def on_helper_disconnect(self):
         print "helper:", self.name, "disconnect"
         self.clear()
         self.mgr.on_proxy_disconnect(self.name)
 
-    def on_remote_connect(self):
-        print "remote:", self.name, "connect"
-
     def on_remote_disconnect(self):
         print "remote:", self.name, "disconnect"
         self.clear()
         self.mgr.on_proxy_disconnect(self.name)
-
-    def on_local_connect(self):
-        print "connect:", self.name, "connect"
 
     def on_local_disconnect(self):
         print "connect:", self.name, "disconnect"
         self.clear()
         self.mgr.on_proxy_disconnect(self.name)
 
-    def on_helper_regist(self, bind_addr, remote_addr):
-        print "proxy:", bind_addr, remote_addr
-        self.helper.clear()
-        self.local = LocalProxy(self)
-        self.remote = RemoteProxy(self, bind_addr, remote_addr)
+    def on_helper_proxy(self, bind_addr, remote_addr):
+        print "helper proxy:", bind_addr, remote_addr
+        self.proxy_helper.close()
+        self.proxy_helper = None
+        self.local_proxy = LocalProxy(self, self.proxy_addr)
+        self.remote_proxy = RemoteProxy(self, bind_addr, remote_addr)
 
     def on_remote_recv(self, data):
         self.local.on_recv_data(data)
@@ -293,71 +274,81 @@ class ProxyManager():
         self.remote.on_recv_data(data)
 
     def clear(self):
-        if self.helper:
-            self.helper.close()
-        if self.remote:
-            self.remote.close()
-        if self.local:
-            self.local.close()
+        if self.proxy_helper is not None:
+            self.proxy_helper.close()
+        if self.remote_proxy is not None:
+            self.remote_proxy.close()
+        if self.local_proxy:
+            self.local_proxy.close()
 
     def update(self):
-        if self.helper:
-            self.helper.update()
-        if self.remote:
-            self.remote.update()
-        if self.local:
-            self.local.update()
+        if self.proxy_helper:
+            self.proxy_helper.update()
+        if self.remote_proxy:
+            self.remote_proxy.update()
+        if self.local_proxy:
+            self.local_proxy.update()
 
-class NatConnector(asyncore.dispatcher):
+class ProxyServer(asyncore.dispatcher):
 
-    def __init__(self, name, addr):
+    def __init__(self, name, proxy_addr, remote_addr):
         asyncore.dispatcher.__init__(self)
         self.name = name
-        self.addr = addr
-        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.proxy_addr = proxy_addr
+        self.remote_addr = remote_addr
+        self.create_socket(socket.af_inet, socket.sock_stream)
         self.set_reuse_addr()
-        self.connect(self.addr)
+        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count = 1
         self.status = "connecting"
         self.proxys = {}
 
     def handle_connect(self):
+        print "connect nat success"
         self.status = "connected"
         self.last_time = time.time()
         self.connect_count = 0
         self.send_buffer = bytes()
         self.recv_buffer = bytes()
         self.send_buffer += (struct.pack("!2H", len(self.name), S2N_REGIST_SERV_ASK) + self.name)
-        print "connect server success"
 
     def handle_close(self):
-        self.status = "disconnect"
-        print "nat connector server close"
+        print "connector nat failed"
         self.close()
-
+        self.status = "disconnect"
 
     def handle_error(self):
+        print "connect nat error"
         self.handle_close()
-        print "server error"
 
     def reconnect(self):
-        print "reconnect"
+        print "reconnect nat"
+        self.status = "connecting"
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        self.connect(self.addr)
+        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count += 1
         if self.connect_count > 5:
             self.connect_count = 5
-        self.status = "connecting"
 
     def handle_read(self):
         data = self.recv(2048)
         if not data:
             return
         self.recv_buffer += data
-        self.decode_package()
+        while True:
+            if len(self.recv_buffer) < header_size:
+                break
+            body_size, cmd = struct.unpack("!2H", self.recv_buffer[:header_size])
+            if len(self.recv_buffer) < header_size + body_size:
+                break
+            body = self.recv_buffer[header_size:header_size+body_size]
+            self.recv_buffer = self.recv_buffer[header_size+body_size:]
+
+            if cmd == N2S_REQUEST_PROXY_ASK:
+                self.create_new_proxy(body)
 
     def writable(self):
         return self.status == "connecting" or len(self.send_buffer) > 0
@@ -369,27 +360,14 @@ class NatConnector(asyncore.dispatcher):
         self.send_buffer = self.send_buffer[sent:]
         self.last_time = time.time()
 
-    def decode_package(self):
-        while True:
-            if len(self.recv_buffer) < header_size:
-                break
-            body_size, cmd = struct.unpack("!2H", self.recv_buffer[:header_size])
-            if len(self.recv_buffer) < header_size + body_size:
-                break
-            body = self.recv_buffer[header_size:header_size+body_size]
-            self.recv_buffer = self.recv_buffer[header_size+body_size:]
-            self.dispatch_package(cmd, body)
+    def create_new_proxy(self, name):
+        proxy = self.proxys.get(name)
+        if proxy:
+            proxy.clear()
+        self.proxys[name] = ProxyManager(self, name, self.proxy_addr, self.remote_addr)
 
-    def dispatch_package(self, cmd, body):
-        if cmd == N2S_CLIENT_CONNECT_ASK:
-            self.create_new_proxy(body)
-
-    def create_new_proxy(self, key):
-        self.close_proxy(key)
-        self.proxys[key] = ProxyManager(self, key, self.addr)
-
-    def on_proxy_disconnect(self, key):
-        del self.proxys[key]
+    def on_proxy_disconnect(self, name):
+        del self.proxys[name]
 
     def update(self):
         now_time = time.time()
@@ -400,11 +378,11 @@ class NatConnector(asyncore.dispatcher):
             if now_time >= self.last_time + 30:
                 self.send_buffer += struct.pack("!2H", 0, HEART_BEAT)
                 self.last_time = time.time()
-        for key in self.proxys:
-            self.proxys[key].update()
+        for name in self.proxys:
+            self.proxys[name].update()
 
-handler = NatConnector(serv_name, nat_addr)
+serv = ProxyServer(serv_name, proxy_addr, nat_addr)
 
 while True:
     asyncore.loop(timeout = 1, count = 2)
-    handler.update()
+    serv.update()
