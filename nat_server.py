@@ -23,12 +23,11 @@ S2N_REQUEST_PROXY_RET = 6
 S2N_REGIST_PROXY_ASK = 7
 N2S_REGIST_PROXY_RET = 8
 
-class NatClient(asyncore.dispatcher_with_send):
+class NatConnector(asyncore.dispatcher):
 
-    def __init__(self, sock, addr):
-        asyncore.dispatcher_with_send.__init__(sock)
-        self.addr = addr
-        self.buffer = bytes()
+    def __init__(self, mgr, name, sock, remote_addr):
+        asyncore.dispatcher.__init__(sock)
+        self
 
     def handle_read(self):
         data = self.recv(2048)
@@ -80,7 +79,7 @@ class NatServer(asyncore.dispatcher):
         self.bind(bind_addr)
         self.listen(5)
         self.connectors = {}
-        self.servers = {}
+        self.proxys = {}
 
     def handle_accept(self):
         pair = self.accept()
@@ -98,11 +97,17 @@ class NatServer(asyncore.dispatcher):
             connecotr.clear()
         self.connectors[name] = NatConnector(self, name, sock, remote_addr)
 
-    def on_connector_disconnect(self, name):
-        del self.connectors[name]
+    def on_connector_disconnect(self, name, proxy_name):
+        if name is not None:
+            del self.connectors[name]
+        if proxy_name is not None:
+            del self.proxys[proxy_name]
 
+    def update(self):
+        for name in self.connectors:
+            self.connectors[name].update()
 
-serv = NatServer(bind_addr)
+serv = NatServer(BIND_ADDR)
 while True:
     asyncore.loop(timeout = 1, count = 2)
     serv.update()
