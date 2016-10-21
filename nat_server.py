@@ -3,12 +3,25 @@
 import socket
 import asyncore
 import struct
+import time
 
-host = ""
-port = 7777
-header_size = 4
+BIND_ADDR = ("", 7777)
 
-servers = []
+HEADER_SIZE = 4
+
+HEART_BEAT = 0
+
+S2N_REGIST_SERV_ASK = 1
+N2S_REGIST_SERV_RET = 2
+
+C2N_REQUEST_PROXY_ASK = 3
+N2C_REQUEST_PROXY_RET = 4
+
+N2S_REQUEST_PROXY_ASK = 5
+S2N_REQUEST_PROXY_RET = 6
+
+S2N_REGIST_PROXY_ASK = 7
+N2S_REGIST_PROXY_RET = 8
 
 class NatClient(asyncore.dispatcher_with_send):
 
@@ -23,13 +36,13 @@ class NatClient(asyncore.dispatcher_with_send):
             return
         self.buffer += data
         while True:
-            if len(self.buffer) < header_size:
+            if len(self.buffer) < HEADER_SIZE:
                 break
-            body_size, cmd = struct.unpack("!2H", self.buffer[:header_size])
-            if len(self.buffer) < header_size + body_size:
+            body_size, cmd = struct.unpack("!2H", self.buffer[:HEADER_SIZE])
+            if len(self.buffer) < HEADER_SIZE + body_size:
                 break
-            body = self.buffer[header_size:header_size+body_size]
-            self.buffer = self.buffer[header_size+body_size]
+            body = self.buffer[HEADER_SIZE:HEADER_SIZE+body_size]
+            self.buffer = self.buffer[HEADER_SIZE+body_size]
             self.handle_cmd(cmd, body)
 
     def handle_close(self):
@@ -59,22 +72,37 @@ class NatClient(asyncore.dispatcher_with_send):
 
 class NatServer(asyncore.dispatcher):
 
-    def __init__(self, host, port):
+    def __init__(self, bind_addr):
         asyncore.dispatcher.__init__(self)
+        self.bind_addr = bind_addr
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        self.bind((host, port))
+        self.bind(bind_addr)
         self.listen(5)
+        self.connectors = {}
+        self.servers = {}
 
     def handle_accept(self):
         pair = self.accept()
         if pair is not None:
             sock, addr = pair
-            print addr, "is connect"
-            NatClient(sock, addr)
+            self.create_new_connector(sock, addr)
 
     def handle_error(self):
-        pass
+        print "nat server error"
 
-NatServer(host, port)
-asyncore.loop()
+    def create_new_connector(self, sock, remote_addr):
+        name = str(sock.fileno())
+        connector = self.connectors.get(name)
+        if connector is not None:
+            connecotr.clear()
+        self.connectors[name] = NatConnector(self, name, sock, remote_addr)
+
+    def on_connector_disconnect(self, name):
+        del self.connectors[name]
+
+
+serv = NatServer(bind_addr)
+while True:
+    asyncore.loop(timeout = 1, count = 2)
+    serv.update()

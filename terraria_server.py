@@ -5,12 +5,11 @@ import asyncore
 import struct
 import time
 
-serv_name = "mzx"
+SERV_NAME = "mzx"
+PROXY_ADDR = ("", 7777)
+NAT_ADDR = ("", 7777)
 
-proxy_addr = ("", 7777)
-nat_addr = ("", 7777)
-
-header_size = 4
+HEADER_SIZE = 4
 
 HEART_BEAT = 0
 
@@ -191,13 +190,13 @@ class ProxyHelper(asyncore.dispatcher):
             return
         self.recv_buffer += data
         while True:
-            if len(self.recv_buffer) < header_size:
+            if len(self.recv_buffer) < HEADER_SIZE:
                 break
-            body_size, cmd = struct.unpack("!2H", self.recv_buffer[:header_size])
-            if len(self.recv_buffer) < header_size + body_size:
+            body_size, cmd = struct.unpack("!2H", self.recv_buffer[:HEADER_SIZE])
+            if len(self.recv_buffer) < HEADER_SIZE + body_size:
                 break
-            body = self.recv_buffer[header_size:header_size+body_size]
-            self.recv_buffer = self.recv_buffer[header_size+body_size:]
+            body = self.recv_buffer[HEADER_SIZE:HEADER_SIZE+body_size]
+            self.recv_buffer = self.recv_buffer[HEADER_SIZE+body_size:]
 
             if cmd == N2S_REGIST_PROXY_RET:
                 addr = body.split(":")
@@ -339,13 +338,13 @@ class ProxyServer(asyncore.dispatcher):
             return
         self.recv_buffer += data
         while True:
-            if len(self.recv_buffer) < header_size:
+            if len(self.recv_buffer) < HEADER_SIZE:
                 break
-            body_size, cmd = struct.unpack("!2H", self.recv_buffer[:header_size])
-            if len(self.recv_buffer) < header_size + body_size:
+            body_size, cmd = struct.unpack("!2H", self.recv_buffer[:HEADER_SIZE])
+            if len(self.recv_buffer) < HEADER_SIZE + body_size:
                 break
-            body = self.recv_buffer[header_size:header_size+body_size]
-            self.recv_buffer = self.recv_buffer[header_size+body_size:]
+            body = self.recv_buffer[HEADER_SIZE:HEADER_SIZE+body_size]
+            self.recv_buffer = self.recv_buffer[HEADER_SIZE+body_size:]
 
             if cmd == N2S_REQUEST_PROXY_ASK:
                 self.create_new_proxy(body)
@@ -381,7 +380,7 @@ class ProxyServer(asyncore.dispatcher):
         for name in self.proxys:
             self.proxys[name].update()
 
-serv = ProxyServer(serv_name, proxy_addr, nat_addr)
+serv = ProxyServer(SERV_NAME, PROXY_ADDR, NAT_ADDR)
 
 while True:
     asyncore.loop(timeout = 1, count = 2)
