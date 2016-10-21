@@ -211,7 +211,6 @@ class ProxyHelper(asyncore.dispatcher):
                 self.connect(remote_addr)
                 self.close()
                 self.mgr.on_helper_proxy(bind_addr, remote_addr)
-                return
 
     def writable(self):
         return self.status == "connected" or len(self.send_buffer) > 0

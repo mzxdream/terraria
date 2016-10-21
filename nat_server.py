@@ -26,48 +26,72 @@ N2S_REGIST_PROXY_RET = 8
 class NatConnector(asyncore.dispatcher):
 
     def __init__(self, mgr, name, sock, remote_addr):
-        asyncore.dispatcher.__init__(sock)
-        self
+        asyncore.dispatcher.__init__(self, sock)
+        self.mgr = mgr
+        self.name = name
+        self.remote_addr = remote_addr
+        self.send_buffer = bytes()
+        self.recv_buffer = bytes()
+        self.last_time = time.time()
+
+    def handle_close(self):
+        print self.name, " nat connector closed"
+        self.close()
+        self.mgr.on_connector_disconnect()
+
+    def handle_error(self):
+        print self.name, " nat connector error"
+        self.handle_close()
 
     def handle_read(self):
         data = self.recv(2048)
         if not data:
             return
-        self.buffer += data
+        self.recv_buffer += data
         while True:
-            if len(self.buffer) < HEADER_SIZE:
+            if len(self.recv_buffer) < HEADER_SIZE:
                 break
-            body_size, cmd = struct.unpack("!2H", self.buffer[:HEADER_SIZE])
-            if len(self.buffer) < HEADER_SIZE + body_size:
+            body_size, cmd = struct.unpack("!2H", self.recv_buffer[:HEADER_SIZE])
+            if len(self.recv_buffer) < HEADER_SIZE + body_size:
                 break
-            body = self.buffer[HEADER_SIZE:HEADER_SIZE+body_size]
-            self.buffer = self.buffer[HEADER_SIZE+body_size]
-            self.handle_cmd(cmd, body)
+            body = self.recv_buffer[HEADER_SIZE:HEADER_SIZE+body_size]
+            self.recv_buffer = self.recv_buffer[HEADER_SIZE+body_size:]
 
-    def handle_close(self):
-        servers.remove(self)
+            if cmd == N2C_REQUEST_PROXY_RET:
+                addr = body.split(":")
+                if len(addr) != 2:
+                    self.handle_close()
+                    print "helper proxy recv:", body
+                    return
+                bind_addr = self.socket.getsockname()
+                remote_addr = (addr[0], int(addr[1]))
+                self.close()
+                self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.set_reuse_addr()
+                self.bind(bind_addr)
+                self.connect(remote_addr)
+                self.close()
+                self.mgr.on_helper_proxy(bind_addr, remote_addr)
+                return
 
-    def handle_error(self):
-        servers.remove(self)
 
-    def handle_cmd(self, cmd, body):
-        if cmd == 1:
-            if self not in servers:
-                servers.append(self)
-                print self.addr, "is server"
-        elif cmd == 2:
-            if len(servers) <= 0:
-                self.send(struct.pack("!2H", 0, 2))
-                print self.addr, " get no server"
-            else:
-                server = servers[0]
-                del servers[0]
-                body = (server.addr[0] + ":" + str(server.addr[1])).encode()
-                self.send(struct.pack("!2H", len(body), 3) + body)
-                body = (self.addr[0] + ":" + str(self.addr[1])).encode()
-                server.send(struct.pack("!2H", len(body), 4) + body)
-                print self.addr, "connect to", server.addr
 
+
+    def on_recv_data(self, data):
+        self.send_buffer += data
+
+    def writable(self):
+        return len(self.send_buffer) > 0
+
+    def handle_write(self):
+        sent = self.send(self.send_buffer)
+        self.send_buffer = self.send_buffer[sent:]
+
+    def is_proxy(self):
+        return False
+
+    def get_proxy_name(self):
+        return self.proxy_name
 
 class NatServer(asyncore.dispatcher):
 
@@ -94,14 +118,18 @@ class NatServer(asyncore.dispatcher):
         name = str(sock.fileno())
         connector = self.connectors.get(name)
         if connector is not None:
-            connecotr.clear()
+            if connector.is_proxy():
+                del self.proxys[connector.get_proxy_name()]
+            connector.close()
         self.connectors[name] = NatConnector(self, name, sock, remote_addr)
 
-    def on_connector_disconnect(self, name, proxy_name):
-        if name is not None:
-            del self.connectors[name]
-        if proxy_name is not None:
-            del self.proxys[proxy_name]
+    def on_connector_disconnect(self, name):
+        connector = self.connectors.get(name)
+        if connector is None:
+            return
+        if connector.is_proxy():
+            del self.proxys[connector.get_proxy_name()]
+        del self.connectors[name]
 
     def update(self):
         for name in self.connectors:
