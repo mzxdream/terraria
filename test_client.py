@@ -2,7 +2,7 @@
 
 import socket
 
-REMOTE_ADDR = ("", 7777)
+REMOTE_ADDR = ("127.0.0.1", 7777)
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect(REMOTE_ADDR)

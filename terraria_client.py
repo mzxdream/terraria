@@ -7,7 +7,7 @@ import time
 
 SERV_NAME = "mzx"
 
-PROXY_ADDR = ("", 7777)
+BIND_ADDR = ("", 7777)
 NAT_ADDR = ("", 7777)
 
 HEADER_SIZE = 4
@@ -169,6 +169,8 @@ class ProxyHelper(asyncore.dispatcher):
         self.last_time = time.time()
         self.connect_count = 1
         self.status = "connecting"
+        self.send_buffer = bytes()
+        self.recv_buffer = bytes()
 
     def handle_connect(self):
         self.status = "connected"
@@ -336,7 +338,7 @@ class ProxyServer(asyncore.dispatcher):
         for name in self.proxys:
             self.proxys[name].update()
 
-serv = ProxyServer(SERV_NAME, PROXY_ADDR, NAT_ADDR)
+serv = ProxyServer(SERV_NAME, BIND_ADDR, NAT_ADDR)
 
 while True:
     asyncore.loop(timeout = 1, count = 2)
