@@ -226,11 +226,12 @@ class ProxyHelper(asyncore.dispatcher):
                 self.mgr.on_helper_proxy(bind_addr, remote_addr)
 
     def writable(self):
-        return self.status == "connected" or len(self.send_buffer) > 0
+        return self.status == "connecting" or len(self.send_buffer) > 0
 
     def handle_write(self):
         if len(self.send_buffer) <= 0:
             return
+        print "proxy helper send:", self.send_buffer
         sent = self.send(self.send_buffer)
         self.send_buffer = self.send_buffer[sent:]
 

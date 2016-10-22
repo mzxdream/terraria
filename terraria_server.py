@@ -75,7 +75,7 @@ class LocalProxy(asyncore.dispatcher):
 
     def reconnect(self):
         print "proxy local reconnect"
-        if self.connet_count > 10:
+        if self.connect_count > 10:
             self.handle_close()
             return
         self.status = "connecting"
@@ -88,7 +88,7 @@ class LocalProxy(asyncore.dispatcher):
     def update(self):
         now_time = time.time()
         if self.status == "disconnect":
-            if now_time >= self.last_time + 2 ** self.connet_count:
+            if now_time >= self.last_time + 2 ** self.connect_count:
                 self.reconnect()
 
 class RemoteProxy(asyncore.dispatcher):
@@ -143,7 +143,7 @@ class RemoteProxy(asyncore.dispatcher):
 
     def reconnect(self):
         print "remote proxy reconnect"
-        if self.connet_count > 10:
+        if self.connect_count > 10:
             self.handle_close()
             return
         self.status = "connecting"
@@ -157,7 +157,7 @@ class RemoteProxy(asyncore.dispatcher):
     def update(self):
         now_time = time.time()
         if self.status == "disconnect":
-            if now_time >= self.last_time + 2 ** self.connet_count:
+            if now_time >= self.last_time + 2 ** self.connect_count:
                 self.reconnect()
 
 class ProxyHelper(asyncore.dispatcher):
@@ -233,7 +233,7 @@ class ProxyHelper(asyncore.dispatcher):
 
     def reconnect(self):
         print "proxy helper reconnect"
-        if self.connet_count > 10:
+        if self.connect_count > 10:
             self.handle_close()
             return
         self.status = "connecting"
@@ -246,7 +246,7 @@ class ProxyHelper(asyncore.dispatcher):
     def update(self):
         now_time = time.time()
         if self.status == "disconnect":
-            if now_time >= self.last_time + 2 ** self.connet_count:
+            if now_time >= self.last_time + 2 ** self.connect_count:
                 self.reconnect()
 
 class ProxyManager():
