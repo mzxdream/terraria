@@ -40,9 +40,11 @@ class LocalProxy(asyncore.dispatcher):
         self.send_buffer = bytes()
 
     def handle_connect(self):
+        print "local proxy connect"
         self.status = "connected"
 
     def handle_close(self):
+        print "local proxy close"
         self.close()
         if self.status == "connected":
             self.mgr.on_local_disconnect()
@@ -50,6 +52,7 @@ class LocalProxy(asyncore.dispatcher):
         self.status = "disconnect"
 
     def handle_error(self):
+        print "local proxy error"
         self.handle_close()
 
     def handle_read(self):
@@ -71,6 +74,7 @@ class LocalProxy(asyncore.dispatcher):
         self.send_buffer = self.send_buffer[sent:]
 
     def reconnect(self):
+        print "proxy local reconnect"
         if self.connet_count > 10:
             self.handle_close()
             return
@@ -104,6 +108,7 @@ class RemoteProxy(asyncore.dispatcher):
         self.send_buffer = bytes()
 
     def handle_connect(self):
+        print "remote proxy connect"
         self.status = "connected"
 
     def handle_close(self):
@@ -115,6 +120,7 @@ class RemoteProxy(asyncore.dispatcher):
         self.status = "disconnect"
 
     def handle_error(self):
+        print "remote proxy error"
         self.handle_close()
 
     def handle_read(self):
@@ -136,6 +142,7 @@ class RemoteProxy(asyncore.dispatcher):
         self.send_buffer = self.send_buffer[sent:]
 
     def reconnect(self):
+        print "remote proxy reconnect"
         if self.connet_count > 10:
             self.handle_close()
             return
@@ -170,6 +177,7 @@ class ProxyHelper(asyncore.dispatcher):
         self.status = "connecting"
 
     def handle_connect(self):
+        print "proxy helper connect"
         self.status = "connected"
         self.send_buffer = bytes()
         self.recv_buffer = bytes()
@@ -184,6 +192,7 @@ class ProxyHelper(asyncore.dispatcher):
         self.status = "disconnect"
 
     def handle_error(self):
+        print "proxy helper error"
         self.handle_close()
 
     def handle_read(self):
@@ -200,6 +209,7 @@ class ProxyHelper(asyncore.dispatcher):
             body = self.recv_buffer[HEADER_SIZE:HEADER_SIZE+body_size]
             self.recv_buffer = self.recv_buffer[HEADER_SIZE+body_size:]
 
+            print "proxy helper recv->", cmd, body
             if cmd == N2S_RESPONSE_PROXY_RET:
                 addr = body.split(":")
                 if len(addr) != 2:
@@ -222,6 +232,7 @@ class ProxyHelper(asyncore.dispatcher):
         self.send_buffer = self.send_buffer[sent:]
 
     def reconnect(self):
+        print "proxy helper reconnect"
         if self.connet_count > 10:
             self.handle_close()
             return
@@ -352,6 +363,7 @@ class ProxyServer(asyncore.dispatcher):
             body = self.recv_buffer[HEADER_SIZE:HEADER_SIZE+body_size]
             self.recv_buffer = self.recv_buffer[HEADER_SIZE+body_size:]
 
+            print "proxy server recv->", cmd, body
             if cmd == N2S_REQUEST_PROXY_ASK:
                 self.create_new_proxy(body)
 
@@ -366,12 +378,14 @@ class ProxyServer(asyncore.dispatcher):
         self.last_time = time.time()
 
     def create_new_proxy(self, name):
+        print "create new proxy:", name
         proxy = self.proxys.get(name)
         if proxy:
             proxy.clear()
         self.proxys[name] = ProxyManager(self, name, self.proxy_addr, self.remote_addr)
 
     def on_proxy_disconnect(self, name):
+        print "proxy disconnect:", name
         del self.proxys[name]
 
     def update(self):

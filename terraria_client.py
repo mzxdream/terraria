@@ -133,6 +133,7 @@ class RemoteProxy(asyncore.dispatcher):
         if pair is None:
             return
         sock, addr = pair
+        print "remote proxy accept:", addr
         if addr[0] != self.remote_addr[0] or addr[1] != self.remote_addr[1]:
             return
         self.remote_connector = RemoteConnector(self)
@@ -140,6 +141,7 @@ class RemoteProxy(asyncore.dispatcher):
         self.recv_buffer = bytes()
 
     def on_connector_disconnect(self):
+        print "remote proxy diconnect"
         self.close()
         self.mgr.on_remote_disconnect()
 
@@ -174,12 +176,14 @@ class ProxyHelper(asyncore.dispatcher):
         self.recv_buffer = bytes()
 
     def handle_connect(self):
+        print "proxy helper connect"
         self.status = "connected"
         self.send_buffer = bytes()
         self.recv_buffer = bytes()
         self.send_buffer += (struct.pack("!2H", len(self.serv_name), C2N_REQUEST_PROXY_ASK) + self.serv_name)
 
     def handle_close(self):
+        print "proxy helper closed"
         self.close()
         if self.status == "connected":
             self.mgr.on_helper_disconnect()
@@ -187,6 +191,7 @@ class ProxyHelper(asyncore.dispatcher):
         self.status = "disconnect"
 
     def handle_error(self):
+        print "proxy helper error"
         self.handle_close()
 
     def handle_read(self):
@@ -203,6 +208,7 @@ class ProxyHelper(asyncore.dispatcher):
             body = self.recv_buffer[HEADER_SIZE:HEADER_SIZE+body_size]
             self.recv_buffer = self.recv_buffer[HEADER_SIZE+body_size:]
 
+            print "proxy helper recv:", cmd, body
             if cmd == N2C_REQUEST_PROXY_RET:
                 addr = body.split(":")
                 if len(addr) != 2:
@@ -229,7 +235,8 @@ class ProxyHelper(asyncore.dispatcher):
         self.send_buffer = self.send_buffer[sent:]
 
     def reconnect(self):
-        if self.connet_count > 10:
+        print "proxy helper reconnect"
+        if self.connect_count > 10:
             self.handle_close()
             return
         self.status = "connecting"

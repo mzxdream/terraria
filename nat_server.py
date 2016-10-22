@@ -69,6 +69,7 @@ class NatConnector(asyncore.dispatcher):
                 self.mgr.on_response_proxy(peer_name, self)
 
     def on_recv_data(self, data):
+        print self.name, self.remote_addr, " recv ", data
         self.send_buffer += data
 
     def writable(self):
@@ -115,6 +116,7 @@ class NatServer(asyncore.dispatcher):
         print "nat server error"
 
     def create_new_connector(self, sock, remote_addr):
+        print "create new connector:", sock.fileno(), remote_addr
         name = str(sock.fileno())
         connector = self.connectors.get(name)
         if connector is not None:
@@ -124,6 +126,7 @@ class NatServer(asyncore.dispatcher):
         self.connectors[name] = NatConnector(self, name, sock, remote_addr)
 
     def on_connector_disconnect(self, name):
+        print "connector disconnect:", name
         connector = self.connectors.get(name)
         if connector is None:
             return
@@ -136,6 +139,7 @@ class NatServer(asyncore.dispatcher):
         self.proxys[proxy_name] = connector
 
     def on_request_proxy(self, proxy_name, connector):
+        print "request proxy:", proxy_name, connector.get_name(), connector.get_remote_addr()
         proxy = self.proxys.get(proxy_name)
         if proxy is None:
             data = struct.pack("!2H", 0, N2C_REQUEST_PROXY_RET)
@@ -146,6 +150,7 @@ class NatServer(asyncore.dispatcher):
         proxy.on_recv_data(data)
 
     def on_response_proxy(self, peer_name, connector):
+        print "response proxy:", peer_name, connector.get_proxy_name(), connector.get_remote_addr()
         peer_connector = self.connectors.get(peer_name)
         if peer_connector is None:
             data = struct.pack("!2H", 0, N2S_RESPONSE_PROXY_RET)
@@ -159,7 +164,6 @@ class NatServer(asyncore.dispatcher):
         body = addr[0] + ":" + str(addr[1])
         data = struct.pack("!2H", len(body), N2S_RESPONSE_PROXY_RET) + body
         connector.on_recv_data(data)
-
 
     def update(self):
         for name in self.connectors:
