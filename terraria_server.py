@@ -33,11 +33,11 @@ class LocalProxy(asyncore.dispatcher):
         self.remote_addr = remote_addr
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count = 1
         self.status = "connecting"
         self.send_buffer = bytes()
+        self.connect(self.remote_addr)
 
     def handle_connect(self):
         print "local proxy connect"
@@ -101,11 +101,11 @@ class RemoteProxy(asyncore.dispatcher):
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
         self.bind(self.bind_addr)
-        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count = 1
         self.status = "connecting"
         self.send_buffer = bytes()
+        self.connect(self.remote_addr)
 
     def handle_connect(self):
         print "remote proxy connect"
@@ -169,12 +169,12 @@ class ProxyHelper(asyncore.dispatcher):
         self.remote_addr = remote_addr
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count = 1
         self.send_buffer = bytes()
         self.recv_buffer = bytes()
         self.status = "connecting"
+        self.connect(self.remote_addr)
 
     def handle_connect(self):
         print "proxy helper connect"
@@ -261,6 +261,8 @@ class ProxyManager():
 
     def on_helper_disconnect(self):
         print "helper:", self.name, "disconnect"
+        if self.proxy_helper is None:
+            return
         self.clear()
         self.mgr.on_proxy_disconnect(self.name)
 
@@ -312,13 +314,13 @@ class ProxyServer(asyncore.dispatcher):
         self.remote_addr = remote_addr
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count = 1
         self.status = "connecting"
         self.proxys = {}
         self.send_buffer = bytes()
         self.recv_buffer = bytes()
+        self.connect(self.remote_addr)
 
     def handle_connect(self):
         print "connect nat success"

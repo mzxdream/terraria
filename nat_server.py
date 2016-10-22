@@ -102,9 +102,9 @@ class NatServer(asyncore.dispatcher):
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
         self.bind(bind_addr)
-        self.listen(5)
         self.connectors = {}
         self.proxys = {}
+        self.listen(5)
 
     def handle_accept(self):
         pair = self.accept()
