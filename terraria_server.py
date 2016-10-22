@@ -295,7 +295,7 @@ class ProxyServer(asyncore.dispatcher):
         self.name = name
         self.proxy_addr = proxy_addr
         self.remote_addr = remote_addr
-        self.create_socket(socket.af_inet, socket.sock_stream)
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
         self.connect(self.remote_addr)
         self.last_time = time.time()
