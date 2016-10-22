@@ -166,7 +166,7 @@ class NatServer(asyncore.dispatcher):
         connector.on_recv_data(data)
 
     def update(self):
-        for name in self.connectors:
+        for name in self.connectors.keys():
             self.connectors[name].update()
 
 serv = NatServer(BIND_ADDR)

@@ -94,6 +94,7 @@ class LocalProxy(asyncore.dispatcher):
 class RemoteProxy(asyncore.dispatcher):
 
     def __init__(self, mgr, bind_addr, remote_addr):
+        print "remote proxy:", bind_addr, remote_addr
         asyncore.dispatcher.__init__(self)
         self.mgr = mgr
         self.bind_addr = bind_addr
@@ -142,7 +143,7 @@ class RemoteProxy(asyncore.dispatcher):
         self.send_buffer = self.send_buffer[sent:]
 
     def reconnect(self):
-        print "remote proxy reconnect"
+        print "remote proxy reconnect:", self.remote_addr
         if self.connect_count > 10:
             self.handle_close()
             return
@@ -399,7 +400,7 @@ class ProxyServer(asyncore.dispatcher):
             if now_time >= self.last_time + 30:
                 self.send_buffer += struct.pack("!2H", 0, HEART_BEAT)
                 self.last_time = time.time()
-        for name in self.proxys:
+        for name in self.proxys.keys():
             self.proxys[name].update()
 
 serv = ProxyServer(SERV_NAME, PROXY_ADDR, NAT_ADDR)

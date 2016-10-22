@@ -347,7 +347,7 @@ class ProxyServer(asyncore.dispatcher):
         del self.proxys[name]
 
     def update(self):
-        for name in self.proxys:
+        for name in self.proxys.keys():
             self.proxys[name].update()
 
 serv = ProxyServer(SERV_NAME, BIND_ADDR, NAT_ADDR)
