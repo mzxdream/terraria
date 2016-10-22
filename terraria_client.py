@@ -121,6 +121,7 @@ class RemoteProxy(asyncore.dispatcher):
         self.listen(5)
         self.last_time = time.time()
         self.recv_buffer = bytes()
+        self.remote_connector = None
 
     def readable(self):
         return self.remote_connector is None
@@ -250,6 +251,7 @@ class ProxyManager(asyncore.dispatcher):
         self.mgr = mgr
         self.name = name
         self.local_proxy = LocalProxy(self, sock)
+        self.remote_proxy = None
         self.proxy_helper = ProxyHelper(self, serv_name, remote_addr)
         self.recv_buffer = bytes()
 
@@ -295,7 +297,7 @@ class ProxyManager(asyncore.dispatcher):
 
     def update(self):
         if self.proxy_helper is not None:
-            self.proxy_helper.close()
+            self.proxy_helper.update()
         if self.local_proxy is not None:
             self.local_proxy.update()
         if self.remote_proxy is not None:

@@ -165,6 +165,8 @@ class ProxyHelper(asyncore.dispatcher):
         self.connect(self.remote_addr)
         self.last_time = time.time()
         self.connect_count = 1
+        self.send_buffer = bytes()
+        self.recv_buffer = bytes()
         self.status = "connecting"
 
     def handle_connect(self):
@@ -242,6 +244,8 @@ class ProxyManager():
         self.name = name
         self.proxy_addr = proxy_addr
         self.remote_addr = remote_addr
+        self.local_proxy = None
+        self.remote_proxy = None
         self.proxy_helper = ProxyHelper(self, name, remote_addr)
 
     def on_helper_disconnect(self):
@@ -277,15 +281,15 @@ class ProxyManager():
             self.proxy_helper.close()
         if self.remote_proxy is not None:
             self.remote_proxy.close()
-        if self.local_proxy:
+        if self.local_proxy is not None:
             self.local_proxy.close()
 
     def update(self):
-        if self.proxy_helper:
+        if self.proxy_helper is not None:
             self.proxy_helper.update()
-        if self.remote_proxy:
+        if self.remote_proxy is not None:
             self.remote_proxy.update()
-        if self.local_proxy:
+        if self.local_proxy is not None:
             self.local_proxy.update()
 
 class ProxyServer(asyncore.dispatcher):
@@ -302,6 +306,8 @@ class ProxyServer(asyncore.dispatcher):
         self.connect_count = 1
         self.status = "connecting"
         self.proxys = {}
+        self.send_buffer = bytes()
+        self.recv_buffer = bytes()
 
     def handle_connect(self):
         print "connect nat success"

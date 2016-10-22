@@ -33,6 +33,7 @@ class NatConnector(asyncore.dispatcher):
         self.send_buffer = bytes()
         self.recv_buffer = bytes()
         self.last_time = time.time()
+        self.proxy_name = None
 
     def handle_close(self):
         print self.name, " nat connector closed"
