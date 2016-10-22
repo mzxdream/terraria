@@ -30,6 +30,7 @@ N2S_RESPONSE_PROXY_RET = 8
 class LocalProxy(asyncore.dispatcher):
 
     def __init__(self, mgr, sock):
+        print "local proxy:", sock.fileno()
         asyncore.dispatcher.__init__(self, sock)
         self.mgr = mgr
         self.send_buffer = bytes()
@@ -69,6 +70,7 @@ class LocalProxy(asyncore.dispatcher):
 
 class RemoteConnector(asyncore.dispatcher):
     def __init__(self, mgr, sock):
+        print "remote connector:", sock.fileno()
         asyncore.dispatcher.__init__(self, sock)
         self.mgr = mgr
         self.send_buffer = bytes()
@@ -109,6 +111,7 @@ class RemoteConnector(asyncore.dispatcher):
 class RemoteProxy(asyncore.dispatcher):
 
     def __init__(self, mgr, bind_addr, remote_addr):
+        print "remote proxy:", bind_addr, remote_addr
         asyncore.dispatcher.__init__(self)
         self.mgr = mgr
         self.bind_addr = bind_addr
@@ -155,6 +158,7 @@ class RemoteProxy(asyncore.dispatcher):
 class ProxyHelper(asyncore.dispatcher):
 
     def __init__(self, mgr, serv_name, remote_addr):
+        print "proxy helper:", serv_name, remote_addr
         asyncore.dispatcher.__init__(self)
         self.mgr = mgr
         self.serv_name = serv_name
@@ -240,6 +244,7 @@ class ProxyHelper(asyncore.dispatcher):
 
 class ProxyManager(asyncore.dispatcher):
     def __init__(self, mgr, name, sock, serv_name, remote_addr):
+        print "proxy manager:", name, serv_name, remote_addr
         self.mgr = mgr
         self.name = name
         self.local_proxy = LocalProxy(self, sock)
@@ -317,6 +322,7 @@ class ProxyServer(asyncore.dispatcher):
         print "proxy server error"
 
     def create_new_proxy(self, sock, remote_addr):
+        print "create new proxy:", remote_addr
         name = sock.fileno()
         proxy = self.proxys.get(name)
         if proxy is not None:

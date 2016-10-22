@@ -37,7 +37,7 @@ class NatConnector(asyncore.dispatcher):
     def handle_close(self):
         print self.name, " nat connector closed"
         self.close()
-        self.mgr.on_connector_disconnect()
+        self.mgr.on_connector_disconnect(self.name)
 
     def handle_error(self):
         print self.name, " nat connector error"
