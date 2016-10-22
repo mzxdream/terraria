@@ -13,8 +13,8 @@ HEADER_SIZE = 4
 
 HEART_BEAT = 0
 
-S2N_REGIST_SERV_ASK = 1
-N2S_REGIST_SERV_RET = 2
+S2N_REGIST_PROXY_ASK = 1
+N2S_REGIST_PROXY_RET = 2
 
 C2N_REQUEST_PROXY_ASK = 3
 N2C_REQUEST_PROXY_RET = 4
@@ -22,8 +22,8 @@ N2C_REQUEST_PROXY_RET = 4
 N2S_REQUEST_PROXY_ASK = 5
 S2N_REQUEST_PROXY_RET = 6
 
-S2N_REGIST_PROXY_ASK = 7
-N2S_REGIST_PROXY_RET = 8
+S2N_RESPONSE_PROXY_ASK = 7
+N2S_RESPONSE_PROXY_RET = 8
 
 class LocalProxy(asyncore.dispatcher):
 
@@ -171,7 +171,7 @@ class ProxyHelper(asyncore.dispatcher):
         self.status = "connected"
         self.send_buffer = bytes()
         self.recv_buffer = bytes()
-        self.send_buffer += (struct.pack("!2H", len(self.name), S2N_REGIST_PROXY_ASK) + self.name)
+        self.send_buffer += (struct.pack("!2H", len(self.name), S2N_RESPONSE_PROXY_ASK) + self.name)
 
     def handle_close(self):
         print self.name, "helper server close"
@@ -198,7 +198,7 @@ class ProxyHelper(asyncore.dispatcher):
             body = self.recv_buffer[HEADER_SIZE:HEADER_SIZE+body_size]
             self.recv_buffer = self.recv_buffer[HEADER_SIZE+body_size:]
 
-            if cmd == N2S_REGIST_PROXY_RET:
+            if cmd == N2S_RESPONSE_PROXY_RET:
                 addr = body.split(":")
                 if len(addr) != 2:
                     self.handle_close()
@@ -310,7 +310,7 @@ class ProxyServer(asyncore.dispatcher):
         self.connect_count = 0
         self.send_buffer = bytes()
         self.recv_buffer = bytes()
-        self.send_buffer += (struct.pack("!2H", len(self.name), S2N_REGIST_SERV_ASK) + self.name)
+        self.send_buffer += (struct.pack("!2H", len(self.name), S2N_REGIST_PROXY_ASK) + self.name)
 
     def handle_close(self):
         print "connector nat failed"

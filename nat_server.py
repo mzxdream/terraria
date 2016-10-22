@@ -11,8 +11,8 @@ HEADER_SIZE = 4
 
 HEART_BEAT = 0
 
-S2N_REGIST_SERV_ASK = 1
-N2S_REGIST_SERV_RET = 2
+S2N_REGIST_PROXY_ASK = 1
+N2S_REGIST_PROXY_RET = 2
 
 C2N_REQUEST_PROXY_ASK = 3
 N2C_REQUEST_PROXY_RET = 4
@@ -20,8 +20,8 @@ N2C_REQUEST_PROXY_RET = 4
 N2S_REQUEST_PROXY_ASK = 5
 S2N_REQUEST_PROXY_RET = 6
 
-S2N_REGIST_PROXY_ASK = 7
-N2S_REGIST_PROXY_RET = 8
+S2N_RESPONSE_PROXY_ASK = 7
+N2S_RESPONSE_PROXY_RET = 8
 
 class NatConnector(asyncore.dispatcher):
 
@@ -57,25 +57,15 @@ class NatConnector(asyncore.dispatcher):
             body = self.recv_buffer[HEADER_SIZE:HEADER_SIZE+body_size]
             self.recv_buffer = self.recv_buffer[HEADER_SIZE+body_size:]
 
-            if cmd == N2C_REQUEST_PROXY_RET:
-                addr = body.split(":")
-                if len(addr) != 2:
-                    self.handle_close()
-                    print "helper proxy recv:", body
-                    return
-                bind_addr = self.socket.getsockname()
-                remote_addr = (addr[0], int(addr[1]))
-                self.close()
-                self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.set_reuse_addr()
-                self.bind(bind_addr)
-                self.connect(remote_addr)
-                self.close()
-                self.mgr.on_helper_proxy(bind_addr, remote_addr)
-                return
-
-
-
+            if cmd == S2N_REGIST_PROXY_ASK:
+                self.proxy_name = body
+                self.mgr.on_regist_proxy(self.proxy_name, self)
+            elif cmd == C2N_REQUEST_PROXY_ASK:
+                proxy_name = body
+                self.mgr.on_request_proxy(proxy_name, self)
+            elif cmd == S2N_RESPONSE_PROXY_ASK:
+                peer_name = body
+                self.mgr.on_response_proxy(peer_name, self)
 
     def on_recv_data(self, data):
         self.send_buffer += data
@@ -87,11 +77,20 @@ class NatConnector(asyncore.dispatcher):
         sent = self.send(self.send_buffer)
         self.send_buffer = self.send_buffer[sent:]
 
+    def get_name(self):
+        return self.name
+
     def is_proxy(self):
-        return False
+        return self.proxy_name is not None
 
     def get_proxy_name(self):
         return self.proxy_name
+
+    def get_remote_addr(self):
+        return self.remote_addr
+
+    def update(self):
+        pass
 
 class NatServer(asyncore.dispatcher):
 
@@ -130,6 +129,36 @@ class NatServer(asyncore.dispatcher):
         if connector.is_proxy():
             del self.proxys[connector.get_proxy_name()]
         del self.connectors[name]
+
+    def on_regist_proxy(self, proxy_name, connector):
+        print "regist proxy:", proxy_name
+        self.proxys[proxy_name] = connector
+
+    def on_request_proxy(self, proxy_name, connector):
+        proxy = self.proxys.get(proxy_name)
+        if proxy is None:
+            data = struct.pack("!2H", 0, N2C_REQUEST_PROXY_RET)
+            connector.on_recv_data(data)
+            return
+        name = connector.get_name()
+        data = struct.pack("!2H", len(name), N2S_REQUEST_PROXY_ASK) + name
+        proxy.on_recv_data(data)
+
+    def on_response_proxy(self, peer_name, connector):
+        peer_connector = self.connectors.get(peer_name)
+        if peer_connector is None:
+            data = struct.pack("!2H", 0, N2S_RESPONSE_PROXY_RET)
+            connector.on_recv_data(data)
+            return
+        addr = connector.get_remote_addr()
+        body = addr[0] + ":" + str(addr[1])
+        data = struct.pack("!2H", len(body), N2C_REQUEST_PROXY_RET) + body
+        peer_connector.on_recv_data(data)
+        addr = peer_connector.get_remote_addr()
+        body = addr[0] + ":" + str(addr[1])
+        data = struct.pack("!2H", len(body), N2S_RESPONSE_PROXY_RET) + body
+        connector.on_recv_data(data)
+
 
     def update(self):
         for name in self.connectors:
