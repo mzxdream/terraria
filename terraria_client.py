@@ -152,7 +152,7 @@ class RemoteProxy(asyncore.dispatcher):
         self.remote_connector.on_recv_data(data)
 
     def update(self):
-        if self.remote_connector:
+        if self.remote_connector is not None:
             self.remote_connector.update()
 
 class ProxyHelper(asyncore.dispatcher):
@@ -241,7 +241,7 @@ class ProxyHelper(asyncore.dispatcher):
     def update(self):
         now_time = time.time()
         if self.status == "disconnect":
-            if now_time >= self.last_time + 2 ** self.connet_count:
+            if now_time >= self.last_time + 2 ** self.connect_count:
                 self.reconnect()
 
 class ProxyManager(asyncore.dispatcher):
