@@ -16,5 +16,6 @@ addr = data.split(":")
 remote_addr = (addr[0], int(addr[1]))
 
 while True:
-    sock.sendto("1123123", remote_addr)
+    print "sendto: %s->123123" % (str(remote_addr))
+    sock.sendto("123123", remote_addr)
     time.sleep(3)
