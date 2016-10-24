@@ -22,6 +22,12 @@ class UdpClient(asyncore.dispatcher):
         self.connected_remote = False
         self.sendto("client", self.nat_addr)
 
+    def handle_close(self):
+        print "closed"
+
+    def handle_error(self):
+        print "error"
+
     def handle_read(self):
         data, addr = self.recvfrom(2048)
         print "recvfrom: %s->%s" % (str(addr), data)
