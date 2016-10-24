@@ -30,6 +30,8 @@ class UdpServer(asyncore.dispatcher):
             self.remote_addr = (addr[0], int(addr[1]))
             return
         if data == "ping":
+            if self.connected_remote:
+                return
             self.sendto("pong", self.remote_addr)
             self.connected_remote = True
             return

@@ -3,6 +3,7 @@
 import socket
 import asyncore
 import time
+import sys
 
 if len(sys.argv) < 2:
     print "input nat ip"
