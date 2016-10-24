@@ -3,8 +3,13 @@
 import socket
 import time
 import asyncore
+import sys
 
-NAT_ADDR = ("", 7777)
+if len(sys.argv) < 2:
+    print "input nat ip"
+    sys.exit()
+
+NAT_ADDR = (sys.argv[1], 7777)
 
 class UdpServer(asyncore.dispatcher):
 

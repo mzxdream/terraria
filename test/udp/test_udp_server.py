@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
 import socket
+import sys
 
-NAT_ADDR = ("", 7777)
+if len(sys.argv) < 2:
+    print "input nat ip"
+    sys.exit()
+
+NAT_ADDR = (sys.argv[1], 7777)
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.sendto("server", NAT_ADDR)
