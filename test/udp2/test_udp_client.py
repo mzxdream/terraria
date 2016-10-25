@@ -44,9 +44,9 @@ class UdpClient(asyncore.dispatcher):
         if self.remote_addr is None:
             return
         if not self.connected_remote:
+            time.sleep(1)
             self.sendto("ping", self.remote_addr)
             print "sendto ping ->", self.remote_addr
-            time.sleep(1)
             return
         data = raw_input("input:")
         self.sendto(data, self.remote_addr)
