@@ -27,6 +27,12 @@ class UdpClient(asyncore.dispatcher):
 
     def handle_error(self):
         print "error"
+        #asyncore.dispatcher.handle_error(self)
+        bind_addr = self.socket.getsockname()
+        self.close()
+        self.create_socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.set_reuse_addr()
+        self.bind(bind_addr)
 
     def handle_read(self):
         data, addr = self.recvfrom(2048)
