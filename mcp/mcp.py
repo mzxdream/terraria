@@ -38,6 +38,7 @@ class McpSegment:
         self._cmd = 0
         self._wnd = 0
         self._len = 0
+        self._data = None
 
     @staticmethod
     def parseFromData(data):
