@@ -26,9 +26,25 @@ MTcpBuffer::~MTcpBuffer()
     }
 }
 
-int MTcpBuffer::append(char *buf, std::size_t size)
+const char* MTcpBuffer::buffer() const
 {
-    if (!buf || size < 0)
+    return _buf;
+}
+
+const char* MTcpBuffer::buffer(std::size_t &size) const
+{
+    size = _size;
+    return _buf;
+}
+
+std::size_t MTcpBuffer::size() const
+{
+    return _size;
+}
+
+int MTcpBuffer::append(const char *buf, std::size_t size)
+{
+    if (!buf || size <= 0)
     {
         return -1;
     }
@@ -40,11 +56,18 @@ int MTcpBuffer::append(char *buf, std::size_t size)
         delete[] _buf;
         _begin = _buf = tmp;
     }
-    else if (size > _capacity - size - (_begin - _buf)) {
+    else if (size > _capacity - _size - (_begin - _buf)) {
         std::copy(_begin, _begin + _size, _buf);
         _begin = _buf;
     }
     std::copy(buf, buf + size, _begin + _size);
     _size += size;
     return 0;
+}
+
+template <typename T>
+int MTcpBuffer::append(T val)
+{
+    val = hton_any(val);
+    return append(reinterpret_cast<char*>(&val), sizeof(val));
 }

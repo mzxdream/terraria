@@ -13,7 +13,12 @@ private:
     MTcpBuffer(const MTcpBuffer &);
     MTcpBuffer& operator=(const MTcpBuffer &);
 public:
-    int append(void *buf, std::size_t size);
+    const char* buffer() const;
+    const char* buffer(std::size_t &size) const;
+    std::size_t size() const;
+    int append(const char *buf, std::size_t size);
+    template<typename T>
+    int append(T val);
 private:
     char *_buf;
     char *_begin;
