@@ -7,6 +7,7 @@ class MTcpBuffer
 {
 public:
     MTcpBuffer();
+    explicit MTcpBuffer(std::size_t size);
     explicit MTcpBuffer(char *buf, std::size_t size);
     ~MTcpBuffer();
 private:

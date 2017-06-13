@@ -9,13 +9,33 @@ MTcpBuffer::MTcpBuffer()
 {
 }
 
+MTcpBuffer::MTcpBuffer(std::size_t size)
+    :_buf(0)
+    ,_begin(0)
+    ,_size(0)
+    ,_capacity(0)
+{
+    if (size > 0)
+    {
+        _capacity = next_power_2(size);
+        _begin = _buf = new char[_capacity]();
+        _size = size;
+    }
+}
+
 MTcpBuffer::MTcpBuffer(char *buf, std::size_t size)
     :_buf(0)
     ,_begin(0)
     ,_size(0)
     ,_capacity(0)
 {
-    append(buf, size);
+    if (buf && size > 0)
+    {
+        _capacity = next_power_2(size);
+        _begin = _buf = new char[_capacity];
+        std::copy(buf, buf + size, _begin);
+        _size = size;
+    }
 }
 
 MTcpBuffer::~MTcpBuffer()
