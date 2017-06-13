@@ -42,11 +42,21 @@ std::size_t MTcpBuffer::size() const
     return _size;
 }
 
-bool MTcpBuffer::append(const char *buf, std::size_t size)
+void MTcpBuffer::shrink(std::size_t size)
+{
+    if (size > _size)
+    {
+        size = _size;
+    }
+    _begin += size;
+    _size -= size;
+}
+
+void MTcpBuffer::append(const char *buf, std::size_t size)
 {
     if (!buf || size <= 0)
     {
-        return false;
+        return;
     }
     if (size > _capacity - _size)
     {
@@ -56,18 +66,40 @@ bool MTcpBuffer::append(const char *buf, std::size_t size)
         delete[] _buf;
         _begin = _buf = tmp;
     }
-    else if (size > _capacity - _size - (_begin - _buf)) {
+    else if (size > _capacity - _size - (_begin - _buf))
+    {
         std::copy(_begin, _begin + _size, _buf);
         _begin = _buf;
     }
     std::copy(buf, buf + size, _begin + _size);
     _size += size;
-    return true;
+}
+
+void MTcpBuffer::write(const char *buf, std::size_t size, std::size_t begin)
+{
+    if (!buf || size <= 0)
+    {
+        return;
+    }
+    if (size > _capacity - begin)
+    {
+        _capacity = next_power_2(size + begin);
+        char *tmp = new char[_capacity];
+        std::copy(_begin, _begin + _size, tmp);
+        delete[] _buf;
+        _begin = _buf = tmp;
+    }
+    else if (size > _capacity - begin - (_begin - _buf))
+    {
+        std::copy(_begin, _begin + _size, _buf);
+        _begin = _buf;
+    }
+    std::copy(buf, buf + size, _begin + begin);
 }
 
 std::size_t MTcpBuffer::peek(char *buf, std::size_t size)
 {
-    if (size <= 0 || _size <= 0)
+    if (!buf || size <= 0 || _size <= 0)
     {
         return 0;
     }
@@ -86,5 +118,23 @@ std::size_t MTcpBuffer::get(char *buf, std::size_t size)
     {
         _begin += size;
     }
+    return size;
+}
+
+std::size_t MTcpBuffer::read(char *buf, std::size_t size, std::size_t begin)
+{
+    if (!buf || size <= 0 || _size <= 0)
+    {
+        return 0;
+    }
+    if (begin >= _size)
+    {
+        return 0;
+    }
+    if (begin + size > _size)
+    {
+        size = _size - begin;
+    }
+    std::copy(_begin + begin, _begin + begin + size, buf);
     return size;
 }

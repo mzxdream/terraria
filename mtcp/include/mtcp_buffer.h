@@ -16,13 +16,22 @@ public:
     const char* buffer() const;
     const char* buffer(std::size_t &size) const;
     std::size_t size() const;
+    void shrink(std::size_t size);
 
-    bool append(const char *buf, std::size_t size);
+    void append(const char *buf, std::size_t size);
     template <typename T>
-    bool append(T val)
+    void append(T val)
     {
         val = hton_any(val);
-        return append(reinterpret_cast<const char*>(&val), sizeof(val));
+        append(reinterpret_cast<const char*>(&val), sizeof(val));
+    }
+
+    void write(const char *buf, std::size_t size, std::size_t begin = 0);
+    template <typename T>
+    void write(T val, std::size_t begin = 0)
+    {
+        val = hton_any(val);
+        write(reinterpret_cast<const char*>(&val), sizeof(val), begin);
     }
 
     std::size_t peek(char *buf, std::size_t size);
@@ -47,6 +56,19 @@ public:
             return false;
         }
         _begin += sizeof(val);
+        return true;
+    }
+
+    std::size_t read(char *buf, std::size_t size, std::size_t begin = 0);
+    template <typename T>
+    bool read(T &val, std::size_t begin = 0)
+    {
+        std::size_t size = sizeof(val);
+        if (read(reinterpret_cast<char*>(&val), size, begin) != size)
+        {
+            return false;
+        }
+        val = ntoh_any(val);
         return true;
     }
 private:
