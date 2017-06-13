@@ -8,15 +8,15 @@ class MTcpBuffer
 public:
     MTcpBuffer();
     explicit MTcpBuffer(std::size_t size);
-    explicit MTcpBuffer(char *buf, std::size_t size);
+    explicit MTcpBuffer(const char *buf, std::size_t size);
     ~MTcpBuffer();
 private:
     MTcpBuffer(const MTcpBuffer &);
     MTcpBuffer& operator=(const MTcpBuffer &);
 public:
-    const char* buffer() const;
-    const char* buffer(std::size_t &size) const;
+    const char* buffer(std::size_t *size = 0) const;
     std::size_t size() const;
+    void resize(std::size_t size);
     void shrink(std::size_t size);
 
     void append(const char *buf, std::size_t size);
