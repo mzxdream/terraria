@@ -42,11 +42,11 @@ std::size_t MTcpBuffer::size() const
     return _size;
 }
 
-int MTcpBuffer::append(const char *buf, std::size_t size)
+bool MTcpBuffer::append(const char *buf, std::size_t size)
 {
     if (!buf || size <= 0)
     {
-        return -1;
+        return false;
     }
     if (size > _capacity - _size)
     {
@@ -62,12 +62,29 @@ int MTcpBuffer::append(const char *buf, std::size_t size)
     }
     std::copy(buf, buf + size, _begin + _size);
     _size += size;
-    return 0;
+    return true;
 }
 
-template <typename T>
-int MTcpBuffer::append(T val)
+std::size_t MTcpBuffer::peek(char *buf, std::size_t size)
 {
-    val = hton_any(val);
-    return append(reinterpret_cast<char*>(&val), sizeof(val));
+    if (size <= 0 || _size <= 0)
+    {
+        return 0;
+    }
+    if (size > _size)
+    {
+        size = _size;
+    }
+    std::copy(_begin, _begin + size, buf);
+    return size;
+}
+
+std::size_t MTcpBuffer::get(char *buf, std::size_t size)
+{
+    size = peek(buf, size);
+    if (size > 0)
+    {
+        _begin += size;
+    }
+    return size;
 }
