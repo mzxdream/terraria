@@ -95,6 +95,7 @@ void MTcpBuffer::write(const char *buf, std::size_t size, std::size_t begin)
         _begin = _buf;
     }
     std::copy(buf, buf + size, _begin + begin);
+    _size = begin + size;
 }
 
 std::size_t MTcpBuffer::peek(char *buf, std::size_t size)
