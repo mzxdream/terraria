@@ -35,9 +35,9 @@ public:
         write(reinterpret_cast<const char*>(&val), sizeof(val), begin);
     }
 
-    std::size_t peek(char *buf, std::size_t size);
+    std::size_t peek(char *buf, std::size_t size) const;
     template <typename T>
-    bool peek(T &val)
+    bool peek(T &val) const
     {
         std::size_t size = sizeof(val);
         if (peek(reinterpret_cast<char*>(&val), size) != size)
@@ -60,9 +60,9 @@ public:
         return true;
     }
 
-    std::size_t read(char *buf, std::size_t size, std::size_t begin = 0);
+    std::size_t read(char *buf, std::size_t size, std::size_t begin = 0) const;
     template <typename T>
-    bool read(T &val, std::size_t begin = 0)
+    bool read(T &val, std::size_t begin = 0) const
     {
         std::size_t size = sizeof(val);
         if (read(reinterpret_cast<char*>(&val), size, begin) != size)

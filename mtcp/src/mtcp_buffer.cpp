@@ -99,7 +99,7 @@ void MTcpBuffer::write(const char *buf, std::size_t size, std::size_t begin)
     _size = begin + size;
 }
 
-std::size_t MTcpBuffer::peek(char *buf, std::size_t size)
+std::size_t MTcpBuffer::peek(char *buf, std::size_t size) const
 {
     if (!buf || size <= 0 || _size <= 0)
     {
@@ -123,7 +123,7 @@ std::size_t MTcpBuffer::get(char *buf, std::size_t size)
     return size;
 }
 
-std::size_t MTcpBuffer::read(char *buf, std::size_t size, std::size_t begin)
+std::size_t MTcpBuffer::read(char *buf, std::size_t size, std::size_t begin) const
 {
     if (!buf || size <= 0 || _size <= 0)
     {
