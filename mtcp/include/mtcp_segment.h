@@ -3,6 +3,8 @@
 
 #include "mtcp_buffer.h"
 
+#define MTCP_SEGMENT_HEAD_LEN 24
+
 class MTcpSegment
 {
 public:

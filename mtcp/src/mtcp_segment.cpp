@@ -1,7 +1,5 @@
 #include "mtcp_segment.h"
 
-#define MTCP_SEGMENT_HEAD_LEN 24
-
 MTcpSegment::MTcpSegment()
     :_buf(MTCP_SEGMENT_HEAD_LEN)
 {
