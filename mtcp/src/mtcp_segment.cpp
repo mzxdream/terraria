@@ -103,4 +103,5 @@ const char* MTcpSegment::buffer(uint16_t *len)
 void MTcpSegment::append_data(const char *buf, uint16_t len)
 {
     _buf.write(buf, len, buffer_len());
+    this->len(this->len() + len);
 }
