@@ -8,7 +8,6 @@ class MTcpBuffer
 public:
     MTcpBuffer();
     explicit MTcpBuffer(std::size_t size);
-    explicit MTcpBuffer(const char *buf, std::size_t size);
     ~MTcpBuffer();
 private:
     MTcpBuffer(const MTcpBuffer &);
