@@ -7,31 +7,30 @@ class MTcpBuffer
 {
 public:
     MTcpBuffer();
-    explicit MTcpBuffer(std::size_t size);
+    explicit MTcpBuffer(std::size_t capacity);
     ~MTcpBuffer();
 private:
     MTcpBuffer(const MTcpBuffer &);
     MTcpBuffer& operator=(const MTcpBuffer &);
 public:
-    const char* buffer(std::size_t *size = 0) const;
+    void size(std::size_t size);
     std::size_t size() const;
-    void resize(std::size_t size);
-    void shrink(std::size_t size);
+    void lshrink(std::size_t size);
+    void rshrink(std:;size_t size);
+    bool capacity(std::size_t capacity);
+    std::size_t capacity() const;
 
-    void append(const char *buf, std::size_t size);
+    std::size_t append(const char *buf, std::size_t size);
     template <typename T>
-    void append(T val)
+    bool append(T val)
     {
+        if (_capacity < _size + sizeof(val))
+        {
+            return false;
+        }
         val = hton_any(val);
         append(reinterpret_cast<const char*>(&val), sizeof(val));
-    }
-
-    void write(const char *buf, std::size_t size, std::size_t begin = 0);
-    template <typename T>
-    void write(T val, std::size_t begin = 0)
-    {
-        val = hton_any(val);
-        write(reinterpret_cast<const char*>(&val), sizeof(val), begin);
+        return true;
     }
 
     std::size_t peek(char *buf, std::size_t size) const;
@@ -55,20 +54,7 @@ public:
         {
             return false;
         }
-        _begin += sizeof(val);
-        return true;
-    }
-
-    std::size_t read(char *buf, std::size_t size, std::size_t begin = 0) const;
-    template <typename T>
-    bool read(T &val, std::size_t begin = 0) const
-    {
-        std::size_t size = sizeof(val);
-        if (read(reinterpret_cast<char*>(&val), size, begin) != size)
-        {
-            return false;
-        }
-        val = ntoh_any(val);
+        lshrink(sizeof(val));
         return true;
     }
 private:
