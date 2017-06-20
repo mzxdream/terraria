@@ -6,7 +6,6 @@
 #include <utility>
 #include <string>
 
-#define MTCP_HEADER_MAX 20
 #define MTCP_CMD_ACK 1
 #define MTCP_CMD_PUSH 2
 
@@ -15,10 +14,11 @@ typedef struct
     uint32_t seq;
     uint32_t ack;
     uint32_t ts;
+    uint32_t ack_ts;
     uint16_t wnd;
     uint16_t cmd;
-    uint16_t len;
-    uint16_t sack;
+    //uint16_t len;
+    //uint16_t sack;
     const char *data;
     std::list<std::pair<uint32_t, uint32_t> > sack_list;
 }MTcpHeader;

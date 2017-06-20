@@ -1,22 +1,24 @@
 #include "mtcp_buffer.h"
 #include <algorithm>
 
-MTcpBuffer::MTcpBuffer()
-    :_buf(0)
-    ,_begin(0)
-    ,_size(0)
-    ,_capacity(0)
-{
-}
-
 MTcpBuffer::MTcpBuffer(std::size_t capacity)
     :_buf(0)
-    ,_begin(0)
-    ,_size(0)
+    ,_data(0)
     ,_capacity(0)
+    ,_seq(0)
+    ,_ack_seq(0)
+    ,_ts(0)
+    ,_ack_ts(0)
+    ,_cmd(0)
+    ,_wnd(0)
+    ,_len(0)
 {
-    _begin = _buf = new char[capacity]();
-    _capacity = capacity;
+    _capacity = MTCP_HEADER_MAX + capacity;
+    _buf = new char[_capacity]();
+    if (_buf)
+    {
+        _data = _buf + MTCP_HEADER_MAX;
+    }
 }
 
 MTcpBuffer::~MTcpBuffer()
@@ -24,85 +26,25 @@ MTcpBuffer::~MTcpBuffer()
     if (_buf)
     {
         delete[] _buf;
-    }
-    _begin = _buf = 0;
-    _size = _capacity = 0;
-}
-
-void MTcpBuffer::size(std::size_t size)
-{
-    if (size > _capacity)
-    {
-        _size = _capacity;
-    }
-    else
-    {
-        _size = size;
+        _buf = 0;
     }
 }
 
-std::size_t MTcpBuffer::size() const
+bool MTcpBuffer::decode(const char *data, uint16_t size, MTcpBuffer *buf)
 {
-    return _size;
-}
-
-void MTcpBuffer::lshrink(std::size_t size)
-{
-    if (size > _size)
-    {
-        _size = 0;
-    }
-    else
-    {
-        _size -= size;
-        _begin += size;
-        if (_begin >= _buf + _capacity)
-        {
-            _begin -= _capacity;
-        }
-    }
-}
-
-void MTcpBuffer::rshrink(std::size_t size)
-{
-    if (size > _size)
-    {
-        _size = 0;
-    }
-    else
-    {
-        _size -= size;
-    }
-}
-
-bool MTcpBuffer::capacity(std::size_t capacity)
-{
-    if (_capacity == capacity)
-    {
-        return true;
-    }
-    if (capacity == 0)
-    {
-        delete _buf;
-        _begin = _buf = 0;
-        _size = _capacity = 0;
-        return true;
-    }
-    char *buf = new char[capacity]();
     if (!buf)
     {
         return false;
     }
-    _size = peek(buf, capacity);
-    delete[] _buf;
-    _capacity = capacity;
-    _begin = _buf = buf;
+    return true;
 }
 
-std::size_t MTcpBuffer::capacity() const
+const char* MTcpBuffer::encode(uint16_t *size) const
 {
-    return _capacity;
+    return 0;
 }
+
+
 
 std::size_t MTcpBuffer::append(const char *buf, std::size_t size)
 {

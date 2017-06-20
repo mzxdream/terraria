@@ -2,66 +2,56 @@
 #define _MTCP_BUFFER_H_
 
 #include "mtcp_internal.h"
+#include <vector>
+
+#define MTCP_SACK_MAX 10
+#define MTCP_HEADER_MAX (24 + 4 * MTCP_SACK_MAX)
 
 class MTcpBuffer
 {
 public:
-    MTcpBuffer();
-    explicit MTcpBuffer(std::size_t capacity);
+    explicit MTcpBuffer(uint16_t capacity);
     ~MTcpBuffer();
 private:
     MTcpBuffer(const MTcpBuffer &);
     MTcpBuffer& operator=(const MTcpBuffer &);
 public:
-    void size(std::size_t size);
-    std::size_t size() const;
-    void lshrink(std::size_t size);
-    void rshrink(std:;size_t size);
-    bool capacity(std::size_t capacity);
-    std::size_t capacity() const;
+    static bool decode(const char *data, uint16_t size, MTcpBuffer *buf);
+    const char* encode(uint16_t *size) const;
+public:
+    uint32_t seq() const;
+    uint32_t ack_seq() const;
+    uint32_t ts() const;
+    uint32_t ack_ts() const;
+    uint16_t cmd() const;
+    uint16_t wnd() const;
+    uint16_t len() const;
+    const std::vector<uint32_t>& sacks() const;
 
-    std::size_t append(const char *buf, std::size_t size);
-    template <typename T>
-    bool append(T val)
-    {
-        if (_capacity < _size + sizeof(val))
-        {
-            return false;
-        }
-        val = hton_any(val);
-        append(reinterpret_cast<const char*>(&val), sizeof(val));
-        return true;
-    }
-
-    std::size_t peek(char *buf, std::size_t size) const;
-    template <typename T>
-    bool peek(T &val) const
-    {
-        std::size_t size = sizeof(val);
-        if (peek(reinterpret_cast<char*>(&val), size) != size)
-        {
-            return false;
-        }
-        val = ntoh_any(val);
-        return true;
-    }
-
-    std::size_t get(char *buf, std::size_t size);
-    template <typename T>
-    bool get(T &val)
-    {
-        if (!peek(val))
-        {
-            return false;
-        }
-        lshrink(sizeof(val));
-        return true;
-    }
+    void seq(uint32_t);
+    void ack_seq(uint32_t);
+    void ts(uint32_t);
+    void ack_ts(uint32_t);
+    void cmd(uint16_t);
+    void wnd(uint16_t);
+    bool append_sack(uint32_t);
+public:
+    uint16_t append(const char *data, uint16_t size);
+    uint16_t peek(char *data, uint16_t size) const;
+    uint16_t get(char *data, uint16_t size);
 private:
     char *_buf;
-    char *_begin;
-    std::size_t _size;
-    std::size_t _capacity;
+    char *_data;
+    uint16_t _capacity;
+
+    uint32_t _seq;
+    uint32_t _ack_seq;
+    uint32_t _ts;
+    uint32_t _ack_ts;
+    uint16_t _cmd;
+    uint16_t _wnd;
+    uint16_t _len;
+    std::vector<uint32_t> _sacks;
 };
 
 #endif
