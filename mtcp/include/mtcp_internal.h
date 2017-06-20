@@ -71,7 +71,7 @@ static typename std::make_signed<T>::type diff(T a, T b)
 }
 
 template <typename T>
-char* encode(char *p, T a)
+char* encode_any(char *p, T a)
 {
     a = hton_any(a);
     memcpy(p, reinterpret_cast<const char*>(&a), sizeof(a));
@@ -79,7 +79,7 @@ char* encode(char *p, T a)
 }
 
 template <typename T>
-const char* decode(const char *p, T &a)
+const char* decode_any(const char *p, T &a)
 {
     memcpy(reinterpret_cast<char*>(&a), p, sizeof(a));
     a = hton_any(a);
