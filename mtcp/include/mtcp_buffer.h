@@ -4,55 +4,33 @@
 #include "mtcp_internal.h"
 #include <list>
 
-#define MTCP_SACK_MAX (10 * 4)
-#define MTCP_HEADER_MAX 24
+#define MTCP_HEADER_MAX 60
 
 class MTcpBuffer
 {
 public:
-    explicit MTcpBuffer(uint16_t);
+    explicit MTcpBuffer(std::size_t = 0);
     ~MTcpBuffer();
 private:
     MTcpBuffer(const MTcpBuffer &);
     MTcpBuffer& operator=(const MTcpBuffer &);
 public:
-    static bool decode(const char*, uint16_t, MTcpBuffer*);
-    const char* encode(uint16_t*) const;
+    static MTcpBuffer* unserialize(const char *, std::size_t);
 public:
-    uint32_t seq() const;
-    uint32_t ack_seq() const;
-    uint32_t ts() const;
-    uint32_t ack_ts() const;
-    uint16_t cmd() const;
-    uint16_t wnd() const;
-    uint16_t len() const;
-    uint16_t size() const;//include header size
-    const std::list<uint32_t>& sacks() const;
+    const char* serialize(std::size_t * = 0);
+    const char* data(std::size_t * = 0);
+    std::size_t len();
+    MTcpHeader& header();
 
-    void seq(uint32_t);
-    void ack_seq(uint32_t);
-    void ts(uint32_t);
-    void ack_ts(uint32_t);
-    void cmd(uint16_t);
-    void wnd(uint16_t);
-    bool append_sack(uint32_t);
-public:
-    uint16_t append(const char*, uint16_t);
-    uint16_t peek(char*, uint16_t) const;
-    uint16_t get(char*, uint16_t);
+    std::size_t read(const char *, std::size_t);
+    std::size_t append(const char *, std::size_t);
 private:
     char *_buf;
+    char *_head;
     char *_data;
-    uint16_t _capacity;
-
-    uint32_t _seq;
-    uint32_t _ack_seq;
-    uint32_t _ts;
-    uint32_t _ack_ts;
-    uint16_t _cmd;
-    uint16_t _wnd;
-    uint16_t _len;
-    std::list<uint32_t> _sacks;
+    char *_tail;
+    char *_end;
+    MTcpHeader _th;
 };
 
 #endif

@@ -7,83 +7,68 @@
 #include <algorithm>
 #include <cstring>
 
-static union { uint8_t a[4]; uint32_t b; } endian_test = {{0, 0, 0, 1}};
-#define M_BIG_ENDIAN ((uint8_t)endian_test.b)
+static const union { uint8_t a[4]; uint32_t b; } endian_test = {{'l', '?', '?', 'b'}};
+#define MTCP_ENDIANNESS ((uint8_t)endian_test.b)
+#if MTCP_ENDIANNESS == 'l'
+    #define MTCP_LITTLE_ENDIAN
+#elif
+    #define MTCP_BIG_ENDIAN
+#endif
 
 template <typename T>
-static inline T reverse_any(T val)
+static inline T mtcp_hton(T val)
 {
+#ifdef MTCP_LITTLE_ENDIAN
     uint8_t *data = reinterpret_cast<uint8_t*>(&val);
     std::size_t size = sizeof(val);
     for (std::size_t i = 0; i < size / 2; ++i)
     {
         std::swap(data[i], data[size - 1 - i]);
     }
-    return val;
-}
-
-template <typename T>
-static inline T hton_any(T val)
-{
-#ifndef M_BIG_ENDIAN
-    return reverse_any(val);
 #endif
     return val;
 }
+#define mtcp_ntoh mtcp_hton
 
-template <typename T>
-static inline T ntoh_any(T val)
+template <typename T, typename std::enable_if<std::is_unsigned<T>::value, int>::type = 0>
+static typename std::make_signed<T>::type mtcp_diff(T a, T b)
 {
-#ifndef M_BIG_ENDIAN
-    return reverse_any(val);
-#endif
-    return val;
+    return static_cast<typename std::make_signed<T>::type>(a - b);
 }
 
 template <typename T, typename std::enable_if<std::is_unsigned<T>::value, int>::type = 0>
-static bool before(T a, T b)
+static bool mtcp_before(T a, T b)
 {
     return static_cast<typename std::make_signed<T>::type>(a - b) < 0;
 }
 
 template <typename T, typename std::enable_if<std::is_unsigned<T>::value, int>::type = 0>
-static bool before_eq(T a, T b)
+static bool mtcp_before_eq(T a, T b)
 {
     return static_cast<typename std::make_signed<T>::type>(a - b) <= 0;
 }
 
 template <typename T, typename std::enable_if<std::is_unsigned<T>::value, int>::type = 0>
-static bool after(T a, T b)
+static bool mtcp_after(T a, T b)
 {
     return static_cast<typename std::make_signed<T>::type>(a - b) > 0;
 }
 
 template <typename T, typename std::enable_if<std::is_unsigned<T>::value, int>::type = 0>
-static bool after_eq(T a, T b)
+static bool mtcp_after_eq(T a, T b)
 {
     return static_cast<typename std::make_signed<T>::type>(a - b) >= 0;
 }
 
-template <typename T, typename std::enable_if<std::is_unsigned<T>::value, int>::type = 0>
-static typename std::make_signed<T>::type diff(T a, T b)
+typedef struct
 {
-    return static_cast<typename std::make_signed<T>::type>(a - b);
-}
-
-template <typename T>
-char* encode_any(char *p, T a)
-{
-    a = hton_any(a);
-    memcpy(p, reinterpret_cast<const char*>(&a), sizeof(a));
-    return p + sizeof(a);
-}
-
-template <typename T>
-const char* decode_any(const char *p, T &a)
-{
-    memcpy(reinterpret_cast<char*>(&a), p, sizeof(a));
-    a = hton_any(a);
-    return p + sizeof(a);
-}
+    uint32_t seq;
+    uint32_t ack_seq;
+    uint32_t ts;
+    uint32_t ack_ts;
+    uint16_t cmd;
+    uint16_t window;
+    std::list<uint32_t> _sack_list;
+}MTcpHeader;
 
 #endif
