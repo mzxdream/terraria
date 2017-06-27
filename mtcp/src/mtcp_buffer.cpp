@@ -48,6 +48,10 @@ bool MTcpBuffer::decode(const char *data, uint16_t size, MTcpBuffer *buf)
     data = decode_any(data, buf->_len);
     uint16_t sack_len = 0;
     data = decode_any(data, sack_len);
+    if (sack_len * 4 > MTCP_SACK_MAX)
+    {
+        return false;
+    }
     if (size != MTCP_HEADER_MAX + sack_len * 4 + buf->_len)
     {
         return false;
