@@ -1,109 +1,60 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-KCP_RTO_NDL = 30
-KCP_RTO_MIN = 100
-KCP_RTO_DEF = 200
-KCP_RTO_MAX = 60000
+from .kcp_internal import (
+    const,
+    u32_next,
+    u32_diff
+)
 
-KCP_CMD_PUSH = 81
-KCP_CMD_ACK = 82
-KCP_CMD_WASK = 83
-KCP_CMD_WINS = 84
-
-KCP_ASK_SEND = 1
-KCP_ASK_TELL = 2
-
-KCP_WND_SND = 32
-KCP_WND_RCV = 32
-
-KCP_MTU_DEF = 1400
-
-KCP_ACK_FASK = 3
-
-KCP_INTERVAL = 100
-
-KCP_OVERHEAD = 24
-
-KCP_DEADLINK = 20
-
-KCP_THRESH_INIT = 2
-KCP_THRESH_MIN = 2
-
-KCP_PROBE_INIT = 7000
-KCP_PROBE_LIMIT = 120000
-
-def u32_next(a):
-    return (a + 1) & 0xFFFFFFFF
-
-def u32_diff(a, b):
-    diff = a - b
-    if diff > 0x7FFFFFFF:
-        return diff - 0xFFFFFFFF
-    if diff < -0x7FFFFFFF:
-        return diff + 0xFFFFFFFF
-    return diff
-
-class KcpSegment:
+class Kcp(object):
     def __init__(self):
-        self._cmd = 0
-        self._wnd = 0
-        self._ts = 0
-        self._sn = 0
-        self._una = 0
-        self._resendts = 0
-        self._rto = 0
-        self._fastack = 0
-        self._data = bytes()
-
-
-class Kcp:
-    def __init__(self):
-        self._mtu = KCP_MTU_DEF
-        self._mss = self._mtu - KCP_OVERHEAD
-        self._state = 0
-
         self._snd_una = 0
         self._snd_nxt = 0
         self._rcv_nxt = 0
 
         self._ts_recent = 0
         self._ts_lastack = 0
-        self._ssthresh = KCP_THRESH_INIT
+        self._ts_probe = 0
+        self._probe_wait = 0
+
+        self._snd_wnd = const.KCP_WND_SND
+        self._rcv_wnd = const.KCP_WND_RCV
+        self._rmt_wnd = const.KCP_WND_RCV
+
+        self._cwnd = 0
+        self._incr = 0
+        self._probe = 0
+
+        self._mtu = const.KCP_MTU_DEF
+        self._mss = self._mtu - const.KCP_OVERHEAD
+
+        self._ssthresh = const.KCP_THRESH_INIT
 
         self._rx_rttval = 0
         self._rx_srtt = 0
-        self._rx_rto = KCP_RTO_DEF
-        self._rx_minrto = KCP_RTO_MIN
-
-        self._snd_wnd = KCP_WND_SND
-        self._rcv_wnd = KCP_WND_RCV
-        self._rmt_wnd = KCP_WND_RCV
-        self._cwnd = 0
-        self._probe = 0
-
-        self._current = 0
-        self._interval = KCP_INTERVAL
-        self._ts_flush = KCP_INTERVAL
-        self._xmit = 0
+        self._rx_rto = const.KCP_RTO_DEF
+        self._rx_minrto = const.KCP_RTO_MIN
 
         self._nrcv_buf = 0
         self._nsnd_buf = 0
+        self._snd_buf = []
+        self._rcv_buf = []
+        self._state = 0
+
+        self._current = 0
+        self._interval = const.KCP_INTERVAL
+        self._ts_flush = const.KCP_INTERVAL
+        self._xmit = 0
 
         self._nodelay = 0
         self._updated = 0
 
-        self._ts_probe = 0
-        self._probe_wait = 0
 
         self._dead_link = KCP_DEADLINK
-        self._incr = 0
 
         self._snd_queue = []
         self._rcv_queue = []
-
-        self._snd_buf = []
-        self._rcv_buf = []
 
         self._acklist = []
         self._ackcount = 0
