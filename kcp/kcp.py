@@ -12,6 +12,7 @@ class Kcp(object):
         self._snd_una = 0
         self._snd_nxt = 0
         self._rcv_nxt = 0
+        self._copied_nxt = 0
 
         self._ts_recent = 0
         self._ts_lastack = 0
@@ -29,39 +30,27 @@ class Kcp(object):
         self._mtu = const.KCP_MTU_DEF
         self._mss = self._mtu - const.KCP_OVERHEAD
 
-        self._ssthresh = const.KCP_THRESH_INIT
-
-        self._rx_rttval = 0
-        self._rx_srtt = 0
-        self._rx_rto = const.KCP_RTO_DEF
-        self._rx_minrto = const.KCP_RTO_MIN
-
-        self._nrcv_buf = 0
-        self._nsnd_buf = 0
         self._snd_buf = []
         self._rcv_buf = []
         self._state = 0
 
+        self._acklist = []
+
+        self._rx_srtt = 0
+        self._rx_rttval = 0
+        self._rx_rto = const.KCP_RTO_DEF
+        self._rx_minrto = const.KCP_RTO_MIN
+
         self._current = 0
         self._interval = const.KCP_INTERVAL
         self._ts_flush = const.KCP_INTERVAL
-        self._xmit = 0
-
         self._nodelay = 0
         self._updated = 0
-
-
-        self._dead_link = KCP_DEADLINK
-
-        self._snd_queue = []
-        self._rcv_queue = []
-
-        self._acklist = []
-        self._ackcount = 0
-        self._ackblock = 0
+        self._ssthresh = const.KCP_THRESH_INIT
         self._fastresend = 0
         self._nocwnd = 0
-        self._stream = 0
+        self._xmit = 0
+        self._dead_link = const.KCP_DEADLINK
 
         self._output_cb = None
         self._recv_cb = None
@@ -73,21 +62,16 @@ class Kcp(object):
         self._recv_cb = recv_cb
 
     def recv(self, size):
-        ispeek = False
-        if size == 0:
-            return 0
-        elif size < 0:
-            ispeek = True
-            size = -size
+        data = bytes()
+        if size <= 0:
+            raise ValueError("size:%s is less than 1" % (size))
 
-        if len(self._rcv_queue) <= 0:
-            return -1
-
-        peeksize = self.peeksize()
-        if peeksize < 0:
-            return -2
-        elif peeksize > size:
-            return -3
+        for segment in self._rcv_buf:
+            if segment.get_seq() != self._copied_nxt:
+                break
+            buf = segment.get_buf()
+            if len(buf) > size - len(data):
+                break
 
         recover = False
         if len(self._rcv_queue) >= self._rcv_wnd:
