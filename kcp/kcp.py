@@ -7,6 +7,10 @@ from .kcp_internal import (
     u32_diff
 )
 
+from .kcp_segment import (
+    KcpSegment
+)
+
 class Kcp(object):
     def __init__(self):
         self._snd_una = 0
@@ -80,20 +84,29 @@ class Kcp(object):
         if len(data) <= 0:
             return 0
         copied_len = 0
+        seq = self._snd_nxt
         while True:
             if len(self._snd_buf) <= 0:
                 break
             segment = self._snd_buf[-1]
             if u32_diff(segment.get_seq(), self._snd_nxt) < 0:
                 break
+            seq = u32_next(segment.get_seq())
             copied_len = min(len(data), self._mss - segment.buf_len())
             if copied_len <= 0:
                 copied_len = 0
                 break
             segment.append_buf(data[:copied_len])
             break
-        while copied_len < len(data) and u32_diff()
-        return 0
+        while copied_len < len(data) and u32_diff(seq, self._snd_una) <= self._snd_wnd:
+            copy_len = min(len(data) - copied_len, self._mss)
+            segment = KcpSegment()
+            segment.set_seq(seq)
+            segment.write_buf(data[copied_len: copied_len + copy_len])
+            self._snd_buf.append(segment)
+            copied_len += copy_len
+            seq = u32_next(seq)
+        return copied_len
 
     def update_ack(self, rtt):
         rto = 0
