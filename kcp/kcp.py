@@ -122,69 +122,58 @@ class Kcp(object):
             if self._rx_srtt < 1:
                 self._rx_srtt = 1
         rto = self._rx_srtt + max(self._interval, 4 * self._rx_rttval)
-        self._rto = min(max(self._rx_minrto, rto), KCP_RTO_MAX)
+        self._rto = min(max(self._rx_minrto, rto), const.KCP_RTO_MAX)
 
-    def shrink_buf(self):
+    def update_una(self):
         if len(self._snd_buf) <= 0:
             self._snd_una = self._snd_nxt
         else:
-            self._snd_una = self._snd_buf[-1].get_sn()
+            self._snd_una = self._snd_buf[0].get_seq()
 
-    def parse_ack(self, sn):
-        if u32_diff(sn, self._snd_una) < 0 or u32_diff(sn, self._snd_nxt) >= 0:
+    def check_ack(self, seq):
+        if u32_diff(seq, self._snd_una) < 0 or u32_diff(seq, self._snd_nxt) >= 0:
             return
-        for start in range(self._snd_buf):
-            segment = self._snd_buf[start]
-            if u32_diff(sn, segment.get_sn()) < 0:
+        for index, segment in enumerate(self._snd_buf):
+            diff = u32_diff(seq, segment.get_seq())
+            if diff < 0:
                 break
-            if sn == segment.get_sn():
-                self._snd_buf.pop(start)
-                break
-
-    def parse_una(self, una):
-        start - 0
-        for start in range(self._snd_buf):
-            segment = self._snd_buf[start]
-            if u32_diff(una, segment.get_sn()) < 0:
+            elif diff == 0:
+                self._snd_buf.pop(index)
                 break
 
-    def parse_fastack(self, sn):
-        if u32_diff(sn, self._snd_una) < 0 or u32_diff(sn, self._snd_nxt):
+    def check_una(self, una):
+        if u32_diff(una, self._snd_una) < 0 or u32_diff(una, self._snd_nxt) >= 0:
+            return
+        while len(self._snd_buf) > 0:
+            segment = self._snd_buf[0]
+            if u32_diff(una, segment.get_seq()) <= 0:
+                break
+            self._snd_buf.pop(0)
+
+    def check_fastack(self, seq):
+        if u32_diff(seq, self._snd_una) < 0 or u32_diff(seq, self._snd_nxt) >= 0:
             return
         for segment in self._snd_buf:
-            if u32_diff(sn, segment.get_sn()) <= 0:
+            if u32_diff(seq, segment.get_seq()) <= 0:
                 break
             segment.add_fastack()
 
-    def ack_push(self, sn, ts):
-        self._acklist.push((sn, ts))
-
-    def ack_get(self, index):
-        return self._acklist[index]
-
-    def parse_data(self, segment):
-        sn = segment.get_sn()
-        repeat = 0
-
-        if u32_diff(sn, self._rcv_nxt) >= self._rcv_wnd or u32_diff(sn, self._rcv_nxt) < 0:
+    def append_data(self, segment):
+        seq = segment.get_seq()
+        if u32_diff(seq, self._rcv_nxt) < 0 or u32_diff(seq, self._rcv_nxt) >= self._rcv_wnd:
             return
-
-        for i in range(self._rcv_buf):
-            segment = self._rcv_buf[i]
-            if segment.get_sn() == sn:
+        for index, segment in enumerate(self._rcv_buf):
+            diff = u32_diff(seq, segment.get_seq())
+            if diff > 0:
+                continue
+            if diff != 0:
+                self._rcv_buf.insert(index, segment)
+            break
+        for segment in self._rcv_buf:
+            diff = u32_diff(self._rcv_nxt, segment.get_seq())
+            if diff != 0:
                 break
-            if u32_diff(sn, segment.get_sn()) > 0:
-                self._rcv_buf.insert(i, segment)
-                break
-
-        while len(self._rcv_buf) > 0:
-            segment = self._rcv_buf[0]
-            if segment.get_sn() != self._rcv_nxt:
-                break
-            if len(self._rcv_queue) >= self._rcv_wnd:
-                break
-            self._rcv_queue.push(segment)
-            self._rcv_buf.pop(0)
+            self._rcv_nxt = u32_next(self._rcv_nxt)
 
     def input(self, data):
         pass
