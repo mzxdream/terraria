@@ -11,6 +11,10 @@ from .kcp_segment import (
     KcpSegment
 )
 
+from .kcp_header import (
+    KcpHeader
+)
+
 class Kcp(object):
     def __init__(self):
         self._snd_una = 0
@@ -109,6 +113,8 @@ class Kcp(object):
         return copied_len
 
     def update_ack(self, rtt):
+        if rtt <= 0:
+            return
         rto = 0
         if self._rx_srtt == 0:
             self._rx_srtt = rtt
@@ -140,6 +146,7 @@ class Kcp(object):
             elif diff == 0:
                 self._snd_buf.pop(index)
                 break
+        self.update_una()
 
     def check_una(self, una):
         if u32_diff(una, self._snd_una) < 0 or u32_diff(una, self._snd_nxt) >= 0:
@@ -149,6 +156,7 @@ class Kcp(object):
             if u32_diff(una, segment.get_seq()) <= 0:
                 break
             self._snd_buf.pop(0)
+        self.update_una()
 
     def check_fastack(self, seq):
         if u32_diff(seq, self._snd_una) < 0 or u32_diff(seq, self._snd_nxt) >= 0:
@@ -176,4 +184,105 @@ class Kcp(object):
             self._rcv_nxt = u32_next(self._rcv_nxt)
 
     def input(self, data):
-        pass
+        maxack = None
+        una = self._snd_una
+        while True:
+            header, size = KcpHeader.parse_from(data)
+            if header == None:
+                break
+            data = data[size:]
+            self._rmt_wnd = header.get_wnd()
+            self.check_una(header.get_una())
+            if header.get_cmd() == const.KCP_CMD_ASK:
+                self.update_ack(u32_diff(self._current, header.get_ts()))
+                self.check_ack(header.get_seq())
+                if maxack == None or u32_diff(maxack, header.get_seq()) < 0:
+                    maxack = header.get_seq()
+            elif header.get_cmd() == const.KCP_CMD_PUSH:
+                if u32_diff(header.get_seq(), self._rcv_nxt) >= 0 and u32_diff(header.get_seq(), self.rcv_nxt) < self._rcv_wnd:
+                    segment = KcpSegment()
+                    segment.set_seq(header.get_seq())
+                    segment.write_buf(data[:header.get_len()])
+                    data = data[header.get_len():]
+                    self.append_data(segment)
+            elif header.get_cmd() == const.KCP_CMD_WASK:
+                self._probe |= const.KCP_ASK_TELL
+
+        if maxack != None:
+            self.update_fastack(maxack)
+
+        if u32_diff(self._snd_una, una) > 0 and self._cwnd < self._rmt_wnd:
+            if self._cwnd < self._ssthresh:
+                self._cwnd += 1
+                self._incr += self._mss
+            else:
+                self._incr = max(self._incr, self._mss)
+                self._incr += (self._mss * self._mss / self._incr + self._mss / 16)
+                if (self._cwnd + 1) * self._mss <= self._incr:
+                    self._cwnd += 1
+            if self._cwnd > self._rmt_wnd:
+                self._cwnd = self._rmt_wnd
+                self._incr = self._rmt_wnd * self._mss
+
+    def flush(self):
+        data = bytes()
+        header = KcpHeader()
+        header.set_seq(0)
+        header.set_una(self._rcv_nxt)
+        header.set_cmd(const.KCP_CMD_ACK)
+        header.set_wnd(self._rcv_wnd - u32_diff(self._rcv_nxt - 123))
+        header.set_len(0)
+        header.set_ts(0)
+        while len(self._acklist) > 0:
+            ack = self._acklist.pop(0)
+            header.set_seq(ack[0])
+            header.set_ts(ack[1])
+            info = header.stringify()
+            if len(data) + len(info) > self._mtu:
+                self._output(data)
+                data = bytes()
+            data += info
+
+        if self._rmt_wnd <= 0:
+            if self._probe_wait == 0:
+                self._probe_wait = const.KCP_PROBE_INIT
+                self._ts_probe = self._current + self._probe_wait
+            else:
+                if u32_diff(self._current, self._ts_probe) >= 0:
+                    self._probe_wait = max(self._probe_wait, const.KCP_PROBE_INIT)
+                    self._probe_wait += self._probe_wait / 2
+                    self._probe_wait = min(self._probe_wait, const.KCP_PROBE_LIMIT)
+                    self._ts_probe = self._current + self._probe_wait
+                    self._probe |= const.KCP_ASK_SEND
+        else:
+            self._ts_probe = 0
+            self._probe_wait = 0
+
+        if self._probe & const.KCP_ASK_SEND:
+            header.set_cmd(const.KCP_CMD_WASK)
+            info = header.stringify()
+            if len(data) + len(info) > self._mtu:
+                self.output(data)
+                data = bytes()
+            data += info
+
+        if self._probe & const.KCP_ASK_TELL:
+            info = header.stringify()
+            header.set_cmd(const.KCP_CMD_WINS)
+            if len(data) + len(info) > self._mtu:
+                self._output(data)
+                data = bytes()
+            data += info
+
+        self._probe = 0
+
+        cwnd = min(self._snd_wnd, self._rmt_wnd)
+        if self._nocwnd == 0:
+            cwnd = min(self._cwnd, cwnd)
+
+        for segment in self._snd_buf:
+            if u32_diff(segment.get_seq(), self._rcv_nxt) >= cwnd:
+                break
+            if segment.get_xmit() == 0:
+                segment.set_rto(self._rto)
+                segment.set_resentts =
