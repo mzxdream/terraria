@@ -280,9 +280,70 @@ class Kcp(object):
         if self._nocwnd == 0:
             cwnd = min(self._cwnd, cwnd)
 
+        resent = self._fastresend
+        if self._fastresnd <= 0:
+            resent = 0xFFFFFFF
+
+        rtomin = self._rx_rto >> 3
+        if self._nodelay == 0:
+            rtomin = 0
+
+        lost = 0
+        change = 0
         for segment in self._snd_buf:
-            if u32_diff(segment.get_seq(), self._rcv_nxt) >= cwnd:
+            if u32_diff(segment.get_seq(), self._snd_nxt) >= cwnd:
+                self._snd_nxt = segment.get_seq()
                 break
             if segment.get_xmit() == 0:
+                segment.add_xmit()
                 segment.set_rto(self._rto)
-                segment.set_resentts =
+                segment.set_resentts(self._current + self._rto + rtomin)
+            elif u32_diff(self._current, segment.get_resendts()):
+                segment.add_xmit()
+                if self._nodelay == 0:
+                    segment.add_rto(self.rx_rto)
+                else:
+                    segment.add_rto(self.rx_rto // 2)
+                segment.set_resendts(self._current + segment.get_rto())
+                lost = 1
+            elif segment.get_fastack() >= resent:
+                segment.add_xmit()
+                segment.set_fastack(0)
+                segment.set_resendts(self._current + segment.get_rto())
+                change = 1
+            else:
+                continue
+            if segment.get_xmit() >= self._dead_link:
+                #todo
+                return
+            header.set_ts(self._current)
+            header.set_len(segment.buffer_len())
+            header.set_seq(segment.get_seq())
+            buf = header.stringify() + segment.get_buffer()
+            if len(buf) + len(data) > self._mtu:
+                self.output(data)
+                data = bytes()
+            data += buf
+
+        if len(data) > 0:
+            self.output(data)
+
+        if change:
+            inflight = u32_diff(self._snd_nxt, self._snd_una)
+            self._ssthresh = inflight // 2
+            self._ssthresh = max(const.KCP_THRESH_MIN, self._ssthresh)
+            self._cwnd = self._ssthresh + resent
+            self._incr = self._cwnd * self._mss
+
+        if lost:
+            self._ssthresh = cwnd / 2
+            self._ssthresh = max(self._ssthresh, const.KCP_THRESH_MIN)
+            self._cwnd = 1
+            self._incr = self._mss
+
+        if self._cwnd < 1:
+            self._cwnd = 1
+            self._incr = self._mss
+
+    def update(self, current):
+        pass
