@@ -19,6 +19,8 @@ class Kcp(object):
     def __init__(self):
         self._snd_una = 0
         self._snd_nxt = 0
+        self._snd_end = 0
+
         self._rcv_nxt = 0
         self._copied_nxt = 0
 
@@ -62,54 +64,69 @@ class Kcp(object):
 
         self._output_cb = None
         self._recv_cb = None
+        self._error_cb = None
 
     def set_output_cb(self, output_cb):
         self._output_cb = output_cb
 
+    def call_output(self, buf):
+        print("output:", buf)
+        if self._output_cb != None:
+            self._output_cb(buf)
+
     def set_recv_cb(self, recv_cb):
         self._recv_cb = recv_cb
 
+    def call_recv(self):
+        print("recv")
+        if self._recv_cb != None:
+            self._recv_cb()
+
+    def set_error_cv(self, error_cb):
+        self._error_cb = error_cb
+
+    def call_error(self, err):
+        print("error:", err)
+        if self._error_cb != None:
+            self._error_cb(err)
+
     def recv(self, size):
-        data = bytes()
         if size <= 0:
             raise ValueError("size:%s is less than 1" % (size))
-
-        while len(data) < size and len(self._rcv_buf) > 0:
+        buf = bytes()
+        while len(buf) < size and len(self._rcv_buf) > 0:
             segment = self._rcv_buf[0]
             if segment.get_seq() != self._copied_nxt:
                 break
-            data += segment.read_buf(size - len(data))
+            buf += segment.read_buf(size - len(buf))
             if segment.buf_len() <= 0:
                 self._rcv_buf.pop(0)
                 self._copied_nxt = u32_next(self._copied_nxt)
-        return data
+        return buf
 
-    def send(self, data):
-        if len(data) <= 0:
+    def send(self, buf):
+        if len(buf) <= 0:
             return 0
         copied_len = 0
-        seq = self._snd_nxt
         while True:
             if len(self._snd_buf) <= 0:
                 break
             segment = self._snd_buf[-1]
             if u32_diff(segment.get_seq(), self._snd_nxt) < 0:
                 break
-            seq = u32_next(segment.get_seq())
-            copied_len = min(len(data), self._mss - segment.buf_len())
-            if copied_len <= 0:
-                copied_len = 0
+            if segment.buf_len() >= self._mss:
                 break
-            segment.append_buf(data[:copied_len])
+            copied_len = min(len(buf), self._mss - segment.buf_len())
+            segment.append_buf(buf[:copied_len])
             break
-        while copied_len < len(data) and u32_diff(seq, self._snd_una) <= self._snd_wnd:
-            copy_len = min(len(data) - copied_len, self._mss)
+        while copied_len < len(buf) and u32_diff(self._snd_end, self._snd_una) < self._snd_wnd:
+            copy_len = min(len(buf) - copied_len, self._mss)
             segment = KcpSegment()
-            segment.set_seq(seq)
-            segment.write_buf(data[copied_len: copied_len + copy_len])
+            segment.set_seq(self._snd_end)
+            segment.write_buf(buf[copied_len: copied_len + copy_len])
             self._snd_buf.append(segment)
             copied_len += copy_len
-            seq = u32_next(seq)
+            self._snd_end = u32_next(self._snd_end)
         return copied_len
 
     def update_ack(self, rtt):

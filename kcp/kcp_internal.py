@@ -46,5 +46,8 @@ def u32_diff(a, b):
         return diff + 0xFFFFFFFF
     return diff
 
+def u32_add(a, b):
+    return (a + b) & 0xFFFFFFFF
 
-
+def u32_cast(a):
+    return a & 0xFFFFFFFF
