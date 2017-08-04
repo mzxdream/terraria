@@ -19,19 +19,24 @@ class Kcp(object):
     def __init__(self):
         self._snd_una = 0
         self._snd_nxt = 0
-        self._snd_end = 0
+        self._snd_wl1 = 0 #window update
+        self._snd_wnd = const.KCP_WND_SND
+        self._lsndtime = 0
+        self._write_seq = 0
 
+        self._rcv_wup = 0
         self._rcv_nxt = 0
-        self._copied_nxt = 0
+        self._copied_seq = 0
+        self._rcv_tstamp = 0
+        self._rcv_wnd = const.KCP_WND_RCV
+
+        self._rmt_wnd = const.KCP_WND_RCV
 
         self._ts_recent = 0
         self._ts_lastack = 0
         self._ts_probe = 0
         self._probe_wait = 0
 
-        self._snd_wnd = const.KCP_WND_SND
-        self._rcv_wnd = const.KCP_WND_RCV
-        self._rmt_wnd = const.KCP_WND_RCV
 
         self._cwnd = 0
         self._incr = 0
